@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import {
     Target, Check, MapPin, DollarSign, Calendar,
     TrendingUp, Users, Globe, Sparkles, Play,
@@ -39,7 +39,7 @@ export default function LandingPage({ dark, setDark }: LandingPageProps) {
                             <a href="#inspiration" className="text-gray-600 hover:text-gray-900 transition-colors dark:text-slate-300 dark:hover:text-white">
                                 Inspiration
                             </a>
-                            <Link to="/auth" className="text-gray-600 hover:text-gray-900 transition-colors dark:text-slate-300 dark:hover:text-white">
+                            <Link href="/auth/login" className="text-gray-600 hover:text-gray-900 transition-colors dark:text-slate-300 dark:hover:text-white">
                                 Login
                             </Link>
                             <button
@@ -51,7 +51,7 @@ export default function LandingPage({ dark, setDark }: LandingPageProps) {
                                 {dark ? 'Light Mode' : 'Dark Mode'}
                             </button>
                             <Link
-                                to="/dashboard"
+                                href="/dashboard"
                                 className="px-6 py-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-lg hover:shadow-lg transition-all"
                             >
                                 Start Planning
@@ -93,7 +93,7 @@ export default function LandingPage({ dark, setDark }: LandingPageProps) {
 
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Link
-                                    to="/dashboard"
+                                    href="/dashboard"
                                     className="px-8 py-4 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-xl font-semibold hover:shadow-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
                                 >
                                     Start Your Bucket List
@@ -413,7 +413,7 @@ export default function LandingPage({ dark, setDark }: LandingPageProps) {
                         Start planning your first experience today—for free
                     </p>
                     <Link
-                        to="/dashboard"
+                        href="/dashboard"
                         className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 rounded-xl font-bold text-lg hover:shadow-2xl transition-all transform hover:scale-105"
                     >
                         Get Started for Free

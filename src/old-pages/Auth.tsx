@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Target, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 export default function Auth() {
-    const navigate = useNavigate()
+    const router = useRouter()
     const [isLogin, setIsLogin] = useState(true)
     const [showPassword, setShowPassword] = useState(false)
     const [formData, setFormData] = useState({
@@ -66,7 +67,7 @@ export default function Auth() {
 
                 if (user) {
                     localStorage.setItem('currentUser', JSON.stringify(user))
-                    navigate('/dashboard')
+                    router.push('/dashboard')
                 } else {
                     setErrors({ email: 'Invalid email or password' })
                 }
@@ -88,7 +89,7 @@ export default function Auth() {
                     users.push(newUser)
                     localStorage.setItem('users', JSON.stringify(users))
                     localStorage.setItem('currentUser', JSON.stringify(newUser))
-                    navigate('/dashboard')
+                    router.push('/dashboard')
                 }
             }
             setIsLoading(false)
@@ -122,7 +123,7 @@ export default function Auth() {
             <div className="relative w-full max-w-md">
                 {/* Back to Home */}
                 <Link
-                    to="/"
+                    href="/"
                     className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-8 transition-colors dark:text-slate-300 dark:hover:text-white"
                 >
                     <ArrowLeft className="w-4 h-4" />
