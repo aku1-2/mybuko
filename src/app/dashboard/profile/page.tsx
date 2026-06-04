@@ -1,10 +1,16 @@
 "use client"
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { User, Calendar, Target, Award, TrendingUp, Settings } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { User, Award, CheckCircle, Pencil, Check, X } from 'lucide-react'
 import { useTheme } from '../../theme-provider'
 import { useRouter } from 'next/navigation'
+
+function formatJoinedDate(dateValue: string | undefined) {
+  if (!dateValue) return 'Unknown date'
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return 'Unknown date'
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+}
 
 export default function ProfilePage() {
   const { theme } = useTheme()
@@ -16,6 +22,12 @@ export default function ProfilePage() {
     inProgressGoals: 0,
     completionRate: 0
   })
+  const [bio, setBio] = useState('')
+  const [bioDraft, setBioDraft] = useState('')
+  const [isBioEditing, setIsBioEditing] = useState(false)
+  const [profilePicture, setProfilePicture] = useState<string>('')
+  const [saveMessage, setSaveMessage] = useState('')
+  const hiddenFileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -28,7 +40,11 @@ export default function ProfilePage() {
       return
     }
 
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
+    setBio(parsedUser.bio || '')
+    setBioDraft(parsedUser.bio || '')
+    setProfilePicture(parsedUser.profilePicture || '')
 
     const fetchStats = async () => {
       try {
@@ -73,6 +89,10 @@ export default function ProfilePage() {
   if (!user) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   const isDark = theme === 'dark'
+  const joinedDate = formatJoinedDate(user.createdAt)
+  const goalSetterUnlocked = stats.totalGoals > 0
+  const firstVictoryUnlocked = stats.completedGoals > 0
+  const powerUserUnlocked = stats.completedGoals >= 10
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -81,119 +101,200 @@ export default function ProfilePage() {
     router.push('/')
   }
 
+  const updateUserProfile = (updates: Partial<any>) => {
+    if (!user) return
+    const updatedUser = { ...user, ...updates }
+    localStorage.setItem('user', JSON.stringify(updatedUser))
+    setUser(updatedUser)
+    if (updates.bio !== undefined) setBio(updates.bio)
+    if (updates.profilePicture !== undefined) setProfilePicture(updates.profilePicture)
+    setSaveMessage('Profile updated')
+    setTimeout(() => setSaveMessage(''), 3000)
+  }
+
+  const triggerFileInput = () => {
+    hiddenFileInputRef.current?.click()
+  }
+
+  const handlePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const imageData = reader.result as string
+      updateUserProfile({ profilePicture: imageData })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const startBioEditing = () => {
+    setBioDraft(bio)
+    setIsBioEditing(true)
+  }
+
+  const cancelBioEditing = () => {
+    setBioDraft(bio)
+    setIsBioEditing(false)
+  }
+
+  const saveBio = () => {
+    updateUserProfile({ bio: bioDraft })
+    setIsBioEditing(false)
+  }
+
   return (
     <div className={`min-h-screen ${isDark ? 'bg-slate-900 text-slate-200' : 'bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 text-gray-900'} p-8`}>
-      <div className="max-w-4xl mx-auto">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between mb-8">
+          <div>
             <h1 className={`text-4xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Profile</h1>
-            <button
-              onClick={handleLogout}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
-            >
-              Logout
-            </button>
+            <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'} mt-2`}>Update your profile, set a picture, and unlock achievements as you progress.</p>
           </div>
-          <Link href="/dashboard/settings" className={`${isDark ? 'p-3 bg-slate-800/60' : 'p-3 bg-white'} rounded-xl shadow hover:shadow-lg transition-all`}>
-            <Settings className={`w-6 h-6 ${isDark ? 'text-slate-300' : 'text-gray-600'}`} />
-          </Link>
+          <button
+            onClick={handleLogout}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+          >
+            Logout
+          </button>
         </div>
 
-        {/* Profile Card */}
-        <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-2xl shadow-xl p-8 mb-6`}>
-          <div className="flex items-start gap-6 mb-6">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-teal-500 rounded-2xl flex items-center justify-center">
-              <User className="w-12 h-12 text-white" />
+        <div className="grid gap-6 lg:grid-cols-[1.1fr,1.9fr] mb-6">
+          <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-8 space-y-6`}>
+            <div className="flex flex-wrap items-start gap-5">
+              <div className="relative w-28 h-28 rounded-3xl overflow-hidden bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+                {profilePicture ? (
+                  <img src={profilePicture} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <User className="w-14 h-14 text-white" />
+                )}
+                <button
+                  type="button"
+                  onClick={triggerFileInput}
+                  className="absolute bottom-2 right-2 inline-flex items-center justify-center rounded-full bg-white/95 p-2 text-blue-600 shadow-sm transition hover:bg-white"
+                  aria-label="Edit profile picture"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <input
+                  ref={hiddenFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePictureChange}
+                  className="hidden"
+                />
+              </div>
+              <div className="flex-1 min-w-[180px]">
+                <h2 className={`text-3xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{user.name}</h2>
+                <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'} mt-1`}>{user.email}</p>
+                <p className={`${isDark ? 'text-slate-400' : 'text-sm text-gray-500'} mt-3`}>Joined {joinedDate}</p>
+              </div>
             </div>
-            <div>
-              <h2 className={`text-3xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'} mb-2`}>{user.name}</h2>
-              <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'} mb-4`}>{user.email}</p>
-              <p className={`${isDark ? 'text-slate-400' : 'text-sm text-gray-500'}`}>
-                Joined {new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-              </p>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className={`block text-sm font-medium ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>Bio</label>
+                <div className="flex items-center gap-2">
+                  {isBioEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={saveBio}
+                        className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        aria-label="Save bio"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelBioEditing}
+                        className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        aria-label="Cancel bio editing"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startBioEditing}
+                      className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                      aria-label="Edit bio"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <textarea
+                value={isBioEditing ? bioDraft : bio}
+                onChange={(event) => setBioDraft(event.target.value)}
+                rows={5}
+                placeholder="Tell us something about yourself..."
+                readOnly={!isBioEditing}
+                className={`w-full rounded-3xl border px-4 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${isDark ? 'bg-slate-700 border-slate-700 text-slate-100' : 'bg-gray-50 border-gray-200 text-gray-900'} ${!isBioEditing ? 'opacity-80 cursor-not-allowed' : ''}`}
+              />
             </div>
+            {saveMessage && <p className="text-sm text-emerald-400">{saveMessage}</p>}
           </div>
 
-          {/* Bio */}
-          <div className={`${isDark ? 'pt-6 border-t border-slate-700' : 'pt-6 border-t border-gray-200'}`}>
-            <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
-              {user.bio || 'No bio yet. Start planning your dreams!'}
-            </p>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid md:grid-cols-4 gap-4 mb-6">
-          <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-2xl shadow-xl p-6`}>
-            <div className="flex items-center justify-between">
-              <div>
+          <div className="space-y-6">
+            <div className="grid md:grid-cols-4 gap-4">
+              <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-6`}>
                 <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mb-1`}>Total Goals</p>
                 <p className={`text-3xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{stats.totalGoals}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-xl">
-                <Target className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-2xl shadow-xl p-6`}>
-            <div className="flex items-center justify-between">
-              <div>
+              <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-6`}>
                 <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mb-1`}>Completed</p>
                 <p className="text-3xl font-bold text-green-600">{stats.completedGoals}</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-xl">
-                <Award className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-2xl shadow-xl p-6`}>
-            <div className="flex items-center justify-between">
-              <div>
+              <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-6`}>
                 <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mb-1`}>In Progress</p>
                 <p className="text-3xl font-bold text-orange-600">{stats.inProgressGoals}</p>
               </div>
-              <div className="p-3 bg-orange-100 rounded-xl">
-                <Calendar className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-2xl shadow-xl p-6`}>
-            <div className="flex items-center justify-between">
-              <div>
+              <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-6`}>
                 <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mb-1`}>Completion Rate</p>
                 <p className="text-3xl font-bold text-purple-600">{stats.completionRate}%</p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-xl">
-                <TrendingUp className="w-6 h-6 text-purple-600" />
-              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Achievements */}
-        <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-2xl shadow-xl p-8`}>
-          <h2 className={`text-2xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'} mb-6 flex items-center gap-2`}>
-            <Award className="w-6 h-6" />
-            Achievements
-          </h2>
-          
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className={`${isDark ? 'p-6 bg-slate-800/50 rounded-xl border-2 border-slate-700' : 'p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200'}`}>
-              <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>🎯 Goal Setter</p>
-              <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>Created your first goal</p>
-            </div>
-            <div className={`${isDark ? 'p-6 bg-slate-800/50 rounded-xl border-2 border-slate-700' : 'p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200'}`}>
-              <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>✅ First Victory</p>
-              <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>Completed your first goal</p>
-            </div>
-            <div className={`${isDark ? 'p-6 bg-slate-800/40 rounded-xl border-2 border-slate-700 opacity-60' : 'p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-300 opacity-50'}`}>
-              <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>🏆 Power User</p>
-              <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>Complete 10 goals</p>
+            <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-8`}>
+              <div className="flex items-center gap-2 mb-6">
+                <Award className="w-6 h-6" />
+                <h2 className={`text-2xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Achievements</h2>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className={`${isDark ? 'rounded-3xl border p-6 transition' : 'rounded-3xl border p-6 transition'} ${goalSetterUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-blue-50 border-blue-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-300 opacity-60')}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>🎯 Goal Setter</p>
+                    {goalSetterUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                  </div>
+                  <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>
+                    {goalSetterUnlocked ? 'Unlocked' : 'Locked until you create your first goal'}
+                  </p>
+                </div>
+
+                <div className={`${isDark ? 'rounded-3xl border p-6 transition' : 'rounded-3xl border p-6 transition'} ${firstVictoryUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-green-50 border-green-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-300 opacity-60')}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>✅ First Victory</p>
+                    {firstVictoryUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                  </div>
+                  <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>
+                    {firstVictoryUnlocked ? 'Unlocked' : 'Locked until you complete your first goal'}
+                  </p>
+                </div>
+
+                <div className={`${isDark ? 'rounded-3xl border p-6 transition' : 'rounded-3xl border p-6 transition'} ${powerUserUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-purple-50 border-purple-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-300 opacity-60')}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>🏆 Power User</p>
+                    {powerUserUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                  </div>
+                  <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>
+                    {powerUserUnlocked ? 'Unlocked' : 'Locked until you complete 10 goals'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
