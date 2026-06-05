@@ -199,8 +199,15 @@ export default function LandingPage({ dark, setDark }: LandingPageProps) {
                                 color: 'from-green-500 to-green-600'
                             }
                         ].map((item, i) => (
-                            <div key={i} className="relative group">
-                                <div className="bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl dark:from-slate-900 dark:to-slate-950 dark:border-slate-700 dark:hover:border-slate-600 dark:bg-slate-900">
+                            <div key={i} className="relative group h-full">
+                                {/* Glow backdrop */}
+                                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 via-emerald-500 via-yellow-500 to-pink-500 opacity-0 group-hover:opacity-75 dark:group-hover:opacity-100 transition-all duration-500 blur-xl group-hover:blur-2xl animate-gradient-xy" />
+                                
+                                {/* Border glow wrapper */}
+                                <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 via-emerald-500 via-yellow-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-gradient-xy" />
+                                
+                                {/* Inner card content */}
+                                <div className="relative h-full flex flex-col bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border border-gray-200 group-hover:border-transparent transition-all duration-300 dark:from-slate-900 dark:to-slate-950 dark:border-slate-700/50 dark:bg-slate-900">
                                     <div className={`w-14 h-14 bg-gradient-to-br ${item.color} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                                         <item.icon className="w-7 h-7 text-white" />
                                     </div>
@@ -208,7 +215,7 @@ export default function LandingPage({ dark, setDark }: LandingPageProps) {
                                         {item.step}
                                     </div>
                                     <h3 className="text-xl font-bold text-gray-900 mb-3 dark:text-white">{item.title}</h3>
-                                    <p className="text-gray-600 dark:text-slate-300">{item.desc}</p>
+                                    <p className="text-gray-600 dark:text-slate-300 flex-grow">{item.desc}</p>
                                 </div>
                             </div>
                         ))}

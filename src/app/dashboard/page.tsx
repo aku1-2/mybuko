@@ -14,11 +14,13 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [goals, setGoals] = useState<any[]>([])
   const [filteredGoals, setFilteredGoals] = useState<any[]>([])
+  const [myPosts, setMyPosts] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showDropdown, setShowDropdown] = useState(false)
   const [openInfoId, setOpenInfoId] = useState<string | null>(null)
   const [filterCategory, setFilterCategory] = useState('All')
   const [searchTerm, setSearchTerm] = useState('')
+  const [activeTab, setActiveTab] = useState<'goals' | 'posts'>('goals')
 
   const CATEGORIES = ['All', 'Travel', 'Skills', 'Health', 'Adventure', 'Personal']
 
@@ -32,9 +34,31 @@ export default function DashboardPage() {
       return
     }
 
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
     fetchGoals(token)
   }, [router])
+
+  useEffect(() => {
+    if (!user) return
+
+    try {
+      const stored = window.localStorage.getItem('mybuko-explore-posts')
+      if (!stored) {
+        setMyPosts([])
+        return
+      }
+
+      const parsed = JSON.parse(stored) as any[]
+      const filtered = parsed.filter((post) => {
+        return post.authorEmail === user.email || post.author === user.name
+      })
+
+      setMyPosts(filtered)
+    } catch {
+      setMyPosts([])
+    }
+  }, [user])
 
   const fetchGoals = async (token: string) => {
     try {
@@ -44,8 +68,25 @@ export default function DashboardPage() {
 
       if (res.ok) {
         const data = await res.json()
-        setGoals(data)
-        setFilteredGoals(data)
+        // Merge any locally-joined goals for this user so they show up in the dashboard
+        let merged = data
+        try {
+          const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+          if (joinedRaw) {
+            const joined = JSON.parse(joinedRaw) as any[]
+            const storedUser = window.localStorage.getItem('user')
+            const parsedUser = storedUser ? JSON.parse(storedUser) : null
+            const userJoined = joined.filter(j => j.ownerEmail === parsedUser?.email || j.ownerName === parsedUser?.name)
+            // avoid id collisions with server goals
+            const unique = userJoined.filter(j => !data.some((d: any) => String(d.id) === String(j.id) || d.title === j.title))
+            merged = [...data, ...unique]
+          }
+        } catch {
+          // ignore localstorage parse errors
+        }
+
+        setGoals(merged)
+        setFilteredGoals(merged)
       } else if (res.status === 401) {
         // Token expired, redirect to login
         localStorage.removeItem('token')
@@ -281,30 +322,57 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Filter */}
+        {/* Tab Switch */}
         <div className={`rounded-2xl shadow p-4 mb-8 ${isDark ? 'bg-slate-900/70 border border-slate-700' : 'bg-white'}`}>
           <div className="flex flex-wrap gap-3 items-center">
-            <span className={`font-medium ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>Filter by category:</span>
-            {CATEGORIES.map(category => (
-              <button
-                key={category}
-                onClick={() => setFilterCategory(category)}
-                className={`px-4 py-2 rounded-full transition-all whitespace-nowrap ${
-                  filterCategory === category
-                    ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white'
-                    : isDark
-                      ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {category} <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-white/10 px-2 text-xs font-semibold text-slate-200">{category === 'All' ? goals.length : categoryCounts[category] ?? 0}</span>
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={() => setActiveTab('goals')}
+              className={`px-5 py-3 rounded-full font-semibold transition ${activeTab === 'goals' ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-md' : isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Goals
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('posts')}
+              className={`px-5 py-3 rounded-full font-semibold transition ${activeTab === 'posts' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-md' : isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              My Posts
+            </button>
+            <div className={`ml-auto text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
+              {activeTab === 'goals'
+                ? `${filteredGoals.length} filtered goals`
+                : `${myPosts.length} shared posts`}
+            </div>
           </div>
         </div>
 
-        {/* Goals List */}
-        <div className="space-y-4">
+        {activeTab === 'goals' ? (
+          <>
+            {/* Filter */}
+            <div className={`rounded-2xl shadow p-4 mb-8 ${isDark ? 'bg-slate-900/70 border border-slate-700' : 'bg-white'}`}>
+              <div className="flex flex-wrap gap-3 items-center">
+                <span className={`font-medium ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>Filter by category:</span>
+                {CATEGORIES.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setFilterCategory(category)}
+                    className={`px-4 py-2 rounded-full transition-all whitespace-nowrap ${
+                      filterCategory === category
+                        ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white'
+                        : isDark
+                          ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {category} <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-white/10 px-2 text-xs font-semibold text-slate-200">{category === 'All' ? goals.length : categoryCounts[category] ?? 0}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Goals List */}
+            <div className="space-y-4">
           {isLoading ? (
             <div className={`text-center py-12 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>Loading your goals...</div>
           ) : goals.length === 0 ? (
@@ -435,6 +503,36 @@ export default function DashboardPage() {
             })
           )}
         </div>
+      </>
+    ) : (
+      <div className="space-y-4">
+        {myPosts.length === 0 ? (
+          <div className={`rounded-2xl shadow p-12 text-center ${isDark ? 'bg-slate-900/70 border border-slate-700' : 'bg-white'}`}>
+            <p className={`${isDark ? 'text-slate-100' : 'text-gray-900'} mb-4`}>No shared posts yet</p>
+            <p className={`${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Create a post in the Explore page and it will appear here.</p>
+          </div>
+        ) : (
+          myPosts.map((post) => (
+            <div key={post.id} className={`rounded-2xl shadow p-6 ${isDark ? 'bg-slate-900/70 border border-slate-700' : 'bg-white'}`}>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className={`text-xl font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{post.author}</h3>
+                  <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'} mt-2`}>{post.text}</p>
+                  <div className="mt-4 flex flex-wrap gap-3 text-sm font-medium text-slate-600 dark:text-slate-300">
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">{post.likes} likes</span>
+                    <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700 dark:bg-blue-500/10 dark:text-blue-200">{post.comments?.length ?? 0} comments</span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{post.date}</span>
+                  </div>
+                </div>
+                {post.image ? (
+                  <img src={post.image} alt="My post image" className="h-40 w-full max-w-sm rounded-3xl object-cover sm:w-52" />
+                ) : null}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    )}
       </div>
     </div>
   )

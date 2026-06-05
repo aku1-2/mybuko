@@ -29,9 +29,9 @@ export default function LandingPage() {
 
                         {/* Nav Links */}
                         <div className="hidden md:flex items-center gap-4">
-                            <a href="#explore" className="text-gray-600 hover:text-gray-900 transition-colors dark:text-slate-300 dark:hover:text-white">
+                            <Link href="/explore" className="text-gray-600 hover:text-gray-900 transition-colors dark:text-slate-300 dark:hover:text-white">
                                 Explore
-                            </a>
+                            </Link>
                             <a href="#how-it-works" className="text-gray-600 hover:text-gray-900 transition-colors dark:text-slate-300 dark:hover:text-white">
                                 How it Works
                             </a>
@@ -58,6 +58,12 @@ export default function LandingPage() {
                         </div>
 
                         {/* Mobile Menu Button */}
+                        <Link
+                            href="/dashboard"
+                            className="md:hidden ml-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-md text-sm font-medium"
+                        >
+                            Dashboard
+                        </Link>
                         <button className="md:hidden p-2 text-gray-900 dark:text-white">
                             <div className="w-6 h-0.5 bg-current mb-1"></div>
                             <div className="w-6 h-0.5 bg-current mb-1"></div>
@@ -98,10 +104,10 @@ export default function LandingPage() {
                                     Start Your Bucket List
                                     <ChevronRight className="w-5 h-5" />
                                 </Link>
-                                <button className="px-8 py-4 bg-white border-2 border-gray-200 text-gray-900 rounded-xl font-semibold hover:border-gray-300 transition-all flex items-center justify-center gap-2 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
+                                <Link href="/explore" className="px-8 py-4 bg-white border-2 border-gray-200 text-gray-900 rounded-xl font-semibold hover:border-gray-300 transition-all flex items-center justify-center gap-2 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
                                     <Play className="w-5 h-5" />
-                                    See How It Works
-                                </button>
+                                    Explore Community
+                                </Link>
                             </div>
 
                             {/* Trust Indicators */}
@@ -166,6 +172,8 @@ export default function LandingPage() {
                 </div>
             </section>
 
+            {/* Explore feed now lives on /explore */}
+
             {/* HOW IT WORKS */}
             <section id="how-it-works" className="py-20 bg-white dark:bg-slate-950 transition-colors duration-300">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -198,8 +206,15 @@ export default function LandingPage() {
                                 color: 'from-green-500 to-green-600'
                             }
                         ].map((item, i) => (
-                            <div key={i} className="relative group">
-                                <div className="bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border border-gray-200 hover:border-gray-300 transition-all hover:shadow-xl dark:from-slate-900 dark:to-slate-950 dark:border-slate-700 dark:hover:border-slate-600 dark:bg-slate-900">
+                            <div key={i} className="relative group h-full">
+                                {/* Glow backdrop */}
+                                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 via-emerald-500 via-yellow-500 to-pink-500 opacity-0 group-hover:opacity-75 dark:group-hover:opacity-100 transition-all duration-500 blur-xl group-hover:blur-2xl animate-gradient-xy" />
+                                
+                                {/* Border glow wrapper */}
+                                <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 via-emerald-500 via-yellow-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-gradient-xy" />
+                                
+                                {/* Inner card content */}
+                                <div className="relative h-full flex flex-col bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border border-gray-200 group-hover:border-transparent transition-all duration-300 dark:from-slate-900 dark:to-slate-950 dark:border-slate-700/50 dark:bg-slate-900">
                                     <div className={`w-14 h-14 bg-gradient-to-br ${item.color} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                                         <item.icon className="w-7 h-7 text-white" />
                                     </div>
@@ -207,7 +222,7 @@ export default function LandingPage() {
                                         {item.step}
                                     </div>
                                     <h3 className="text-xl font-bold text-gray-900 mb-3 dark:text-white">{item.title}</h3>
-                                    <p className="text-gray-600 dark:text-slate-300">{item.desc}</p>
+                                    <p className="text-gray-600 dark:text-slate-300 flex-grow">{item.desc}</p>
                                 </div>
                             </div>
                         ))}

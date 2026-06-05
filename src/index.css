@@ -158,3 +158,17 @@
 .animation-delay-2000 {
   animation-delay: 2s;
 }
+
+@keyframes gradient-xy {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-xy {
+  background-size: 200% 200%;
+  animation: gradient-xy 6s linear infinite;
+}
