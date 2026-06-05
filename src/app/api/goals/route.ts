@@ -18,9 +18,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const goal = createGoal({ ...body, userId })
+    const goal = await createGoal({ ...body, userId })
     return NextResponse.json(goal, { status: 201 })
   } catch (err) {
+    console.error('Create goal error:', err)
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 }
@@ -31,6 +32,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const goals = listGoals(userId)
+  const goals = await listGoals(userId)
   return NextResponse.json(goals)
 }

@@ -1,3 +1,5 @@
+import { prisma } from './prisma'
+
 type Goal = {
   id: string
   userId: string
@@ -15,50 +17,85 @@ type Goal = {
   createdAt: string
 }
 
-const store = new Map<string, Goal>()
-
-export function createGoal(data: Partial<Goal>) {
-  const id = String(Date.now())
-  const goal: Goal = {
-    id,
-    userId: data.userId || '',
-    title: data.title || 'Untitled',
-    description: data.description || '',
-    category: data.category || 'General',
-    targetDate: data.targetDate || null,
-    budget: data.budget ?? null,
-    priority: data.priority || 'Medium',
-    difficulty: data.difficulty || 'Medium',
-    location: data.location || '',
-    tags: data.tags || [],
-    status: data.status || 'Not Started',
-    progress: data.progress ?? 0,
-    createdAt: new Date().toISOString(),
-  }
-  store.set(id, goal)
-  return goal
+const formatTags = (tags?: string[] | string) => {
+  if (Array.isArray(tags)) return tags.join(',')
+  return typeof tags === 'string' ? tags : ''
 }
 
-export function getGoal(id: string) {
-  return store.get(id) || null
+const parseGoal = (goal: any): Goal => ({
+  ...goal,
+  tags: goal.tags ? goal.tags.split(',').filter((tag: string) => tag.trim().length > 0) : [],
+  targetDate: goal.targetDate ? new Date(goal.targetDate).toISOString() : null,
+})
+
+export async function createGoal(data: Partial<Goal>) {
+  const goal = await prisma.goal.create({
+    data: {
+      userId: data.userId || '',
+      title: data.title || 'Untitled',
+      description: data.description || '',
+      category: data.category || 'General',
+      targetDate: data.targetDate ? new Date(data.targetDate) : null,
+      budget: data.budget ?? null,
+      priority: data.priority || 'Medium',
+      difficulty: data.difficulty || 'Medium',
+      location: data.location || '',
+      tags: formatTags(data.tags),
+      status: data.status || 'Not Started',
+      progress: data.progress ?? 0,
+    },
+  })
+
+  return parseGoal(goal)
 }
 
-export function updateGoal(id: string, updates: Partial<Goal>) {
-  const existing = store.get(id)
+export async function getGoal(id: string) {
+  const goal = await prisma.goal.findUnique({
+    where: { id },
+  })
+
+  return goal ? parseGoal(goal) : null
+}
+
+export async function updateGoal(id: string, updates: Partial<Goal>) {
+  const existing = await prisma.goal.findUnique({ where: { id } })
   if (!existing) return null
 
-  const updated: Goal = {
-    ...existing,
-    ...updates,
-    userId: existing.userId,
-    tags: updates.tags ?? existing.tags,
-  }
+  const goal = await prisma.goal.update({
+    where: { id },
+    data: {
+      title: updates.title ?? existing.title,
+      description: updates.description ?? existing.description,
+      category: updates.category ?? existing.category,
+      targetDate: updates.targetDate === '' ? null : updates.targetDate ? new Date(updates.targetDate) : existing.targetDate,
+      budget: updates.budget ?? existing.budget,
+      priority: updates.priority ?? existing.priority,
+      difficulty: updates.difficulty ?? existing.difficulty,
+      location: updates.location ?? existing.location,
+      tags: updates.tags ? formatTags(updates.tags) : existing.tags,
+      status: updates.status ?? existing.status,
+      progress: updates.progress ?? existing.progress,
+    },
+  })
 
-  store.set(id, updated)
-  return updated
+  return parseGoal(goal)
 }
 
-export function listGoals(userId?: string) {
+export async function deleteGoal(id: string) {
+  const goal = await prisma.goal.delete({
+    where: { id },
+  })
+
+  return parseGoal(goal)
+}
+
+export async function listGoals(userId?: string) {
   if (!userId) return []
-  return Array.from(store.values()).filter(goal => goal.userId === userId)
+
+  const goals = await prisma.goal.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return goals.map(parseGoal)
 }

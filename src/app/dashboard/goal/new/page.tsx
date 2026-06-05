@@ -27,7 +27,8 @@ export default function AddGoalPage() {
     priority: 'Medium',
     difficulty: 'Medium',
     location: '',
-    tags: ''
+    tags: '',
+    visibility: 'Private'
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -214,6 +215,37 @@ export default function AddGoalPage() {
                 className={`w-full px-4 py-3 ${isDark ? 'bg-slate-700/60' : 'bg-gray-50'} border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'text-slate-200' : 'text-black'}`}
               />
             </div>
+          </div>
+
+          <div className={`space-y-3 rounded-2xl border border-gray-200/80 bg-gray-50/80 p-5 ${isDark ? 'bg-slate-800/70 border-slate-700' : ''}`}>
+            <p className="text-sm font-semibold text-gray-900">Make Public?</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className={`cursor-pointer rounded-2xl border p-4 ${formData.visibility === 'Private' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-700'} ${isDark ? 'bg-slate-700/70 text-slate-200' : ''}`}>
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="Private"
+                  checked={formData.visibility === 'Private'}
+                  onChange={handleInputChange}
+                  className="mr-3"
+                />
+                <span className="font-medium">Private</span>
+                <div className="text-xs text-gray-500">Only me</div>
+              </label>
+              <label className={`cursor-pointer rounded-2xl border p-4 ${formData.visibility === 'Public' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-700'} ${isDark ? 'bg-slate-700/70 text-slate-200' : ''}`}>
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="Public"
+                  checked={formData.visibility === 'Public'}
+                  onChange={handleInputChange}
+                  className="mr-3"
+                />
+                <span className="font-medium">Public</span>
+                <div className="text-xs text-gray-500">Everyone can see</div>
+              </label>
+            </div>
+            <p className="text-xs text-gray-500">Public goals appear in Explore</p>
           </div>
 
           {/* Buttons */}

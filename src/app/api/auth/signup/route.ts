@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, createToken } from '@/lib/auth'
 
+// Email validation function
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { name, email, password } = await request.json()
@@ -14,6 +20,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Email format validation
+    if (!isValidEmail(email)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid email address' },
+        { status: 400 }
+      )
+    }
+
+    // Name validation
+    if (name.trim().length < 2) {
+      return NextResponse.json(
+        { error: 'Name must be at least 2 characters' },
+        { status: 400 }
+      )
+    }
+
+    // Password validation
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters' },
@@ -23,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase() }
     })
 
     if (existingUser) {
@@ -39,8 +62,8 @@ export async function POST(request: NextRequest) {
     // Create user in database
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: name.trim(),
+        email: email.toLowerCase(),
         password: hashedPassword
       }
     })

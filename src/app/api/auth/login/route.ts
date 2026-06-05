@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { comparePassword, createToken } from '@/lib/auth'
 
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
@@ -13,9 +18,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!isValidEmail(email)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid email address' },
+        { status: 400 }
+      )
+    }
+
     // Find user in database
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase() }
     })
 
     if (!user) {

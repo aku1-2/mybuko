@@ -28,13 +28,27 @@ export default function DashboardPage() {
     const token = localStorage.getItem('token')
 
     if (!userData || !token) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
       router.push('/auth/login')
       return
     }
 
-    setUser(JSON.parse(userData))
-    fetchGoals(token)
-  }, [router])
+    try {
+      const parsedUser = JSON.parse(userData)
+      if (!parsedUser || !parsedUser.id) {
+        throw new Error('Invalid user data')
+      }
+      setUser(parsedUser)
+      fetchGoals(token)
+    } catch (error) {
+      console.error('Failed to load user from localStorage:', error)
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      setIsLoading(false)
+      router.push('/auth/login')
+    }
+  }, [])
 
   const fetchGoals = async (token: string) => {
     try {
@@ -126,8 +140,24 @@ export default function DashboardPage() {
     }
   }
 
-  const handleDeleteGoal = (id: string) => {
-    setGoals(prevGoals => prevGoals.filter(goal => goal.id !== id))
+  const handleDeleteGoal = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/goals/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (res.ok) {
+        setGoals(prevGoals => prevGoals.filter(goal => goal.id !== id))
+      } else {
+        console.error('Failed to delete goal', await res.text())
+      }
+    } catch (error) {
+      console.error('Error deleting goal:', error)
+    }
   }
 
   if (!user) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -239,13 +269,19 @@ export default function DashboardPage() {
         </div>
 
         {/* Add Goal CTA */}
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
           <Link
             href="/dashboard/goal/new"
-            className={`w-full inline-flex items-center justify-center gap-2 rounded-full px-8 py-5 font-semibold tracking-wide transition ${isDark ? 'bg-gradient-to-r from-violet-700 to-fuchsia-500 text-white hover:opacity-95' : 'bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white hover:shadow-2xl'}`}
+            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-8 py-5 font-semibold tracking-wide transition ${isDark ? 'bg-gradient-to-r from-violet-700 to-fuchsia-500 text-white hover:opacity-95' : 'bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white hover:shadow-2xl'}`}
           >
             <Plus className="w-5 h-5" />
             Add New Goal
+          </Link>
+          <Link
+            href="/dashboard/explore"
+            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-8 py-5 font-semibold tracking-wide transition ${isDark ? 'bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700' : 'bg-white text-gray-900 border border-gray-200 hover:bg-gray-50'}`}
+          >
+            Explore
           </Link>
         </div>
 
