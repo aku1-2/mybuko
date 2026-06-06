@@ -12,6 +12,16 @@ function formatJoinedDate(dateValue: string | undefined) {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
 }
 
+type ExploreActivityPost = {
+  id: number
+  author: string
+  authorEmail?: string
+  text: string
+  date: string
+  likes: number
+  comments?: Array<{ id: number; author: string; text: string; date: string }>
+}
+
 export default function ProfilePage() {
   const { theme } = useTheme()
   const router = useRouter()
@@ -26,6 +36,7 @@ export default function ProfilePage() {
   const [bioDraft, setBioDraft] = useState('')
   const [isBioEditing, setIsBioEditing] = useState(false)
   const [profilePicture, setProfilePicture] = useState<string>('')
+  const [activityPosts, setActivityPosts] = useState<ExploreActivityPost[]>([])
   const [saveMessage, setSaveMessage] = useState('')
   const hiddenFileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -85,6 +96,27 @@ export default function ProfilePage() {
 
     fetchStats()
   }, [router])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !user) return
+
+    try {
+      const stored = window.localStorage.getItem('mybuko-explore-posts')
+      if (!stored) {
+        setActivityPosts([])
+        return
+      }
+
+      const parsed = JSON.parse(stored) as ExploreActivityPost[]
+      const filtered = parsed.filter((post) => {
+        return post.authorEmail === user.email || post.author === user.name
+      })
+
+      setActivityPosts(filtered)
+    } catch {
+      setActivityPosts([])
+    }
+  }, [user])
 
   if (!user) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
@@ -295,6 +327,35 @@ export default function ProfilePage() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-8`}>
+              <div className="flex items-center gap-2 mb-6">
+                <User className="w-6 h-6" />
+                <h2 className={`text-2xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Explore Activity</h2>
+              </div>
+
+              {activityPosts.length > 0 ? (
+                <div className="space-y-4">
+                  {activityPosts.map((post) => (
+                    <div key={post.id} className={`${isDark ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'} rounded-3xl border p-5`}>
+                      <div className="flex items-center justify-between gap-4 mb-3">
+                        <p className={`font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{post.author}</p>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">{post.date}</span>
+                      </div>
+                      <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-700'} mb-4`}>{post.text}</p>
+                      <div className="flex flex-wrap gap-3 text-sm font-medium text-slate-600 dark:text-slate-300">
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">{post.likes} likes</span>
+                        <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700 dark:bg-blue-500/10 dark:text-blue-200">{post.comments?.length ?? 0} comments</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
+                  No shared posts yet. Write an experience on the Explore page and it will appear here in your activity.
+                </p>
+              )}
             </div>
           </div>
         </div>
