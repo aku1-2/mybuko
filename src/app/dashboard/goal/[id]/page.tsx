@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Edit, Trash2, Plus, Check, Calendar, DollarSign, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Plus, Check, Calendar, DollarSign, TrendingUp, Sparkles, Loader, ChevronDown } from 'lucide-react'
 
 export default function GoalDetailPage() {
   const params = useParams()
@@ -14,6 +14,13 @@ export default function GoalDetailPage() {
   const [newNote, setNewNote] = useState('')
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState<any>(null)
+  
+  // ===== NEW AI STATE =====
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiTips, setAiTips] = useState('')
+  const [showAiTips, setShowAiTips] = useState(false)
+  const [improvedGoal, setImprovedGoal] = useState<any>(null)
+  const [aiError, setAiError] = useState('')
 
   useEffect(() => {
     fetchGoal()
@@ -168,6 +175,68 @@ export default function GoalDetailPage() {
     }
   }
 
+  // ===== NEW AI FUNCTIONS =====
+  const getAiTips = async () => {
+    setAiLoading(true)
+    setAiError('')
+    try {
+      const daysActive = goal.createdAt 
+        ? Math.floor((new Date().getTime() - new Date(goal.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+        : 0
+
+      const res = await fetch('/api/ai/progress-tips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goalTitle: goal.title,
+          currentProgress: goal.progress,
+          lastUpdate: new Date().toLocaleDateString(),
+          daysActive: daysActive
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setAiTips(data.tips)
+        setShowAiTips(true)
+      } else {
+        setAiError('Failed to get AI tips')
+      }
+    } catch (error) {
+      console.error('AI Error:', error)
+      setAiError('Error connecting to AI. Make sure GROQ API key is set in .env.local')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const improveGoal = async () => {
+    setAiLoading(true)
+    setAiError('')
+    try {
+      const res = await fetch('/api/ai/improve-goal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goalTitle: goal.title,
+          goalDescription: goal.description
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setImprovedGoal(data.improved)
+      } else {
+        setAiError('Failed to improve goal')
+      }
+    } catch (error) {
+      console.error('AI Error:', error)
+      setAiError('Error connecting to AI. Make sure GROQ API key is set in .env.local')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   if (isLoading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   if (!goal) return <div className="flex items-center justify-center min-h-screen">Goal not found</div>
 
@@ -302,6 +371,145 @@ export default function GoalDetailPage() {
               style={{ width: `${goal.progress}%` }}
             ></div>
           </div>
+        </div>
+
+        {/* ===== NEW: AI ASSISTANT SECTION ===== */}
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl shadow-xl p-8 mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Sparkles className="w-6 h-6 text-purple-600 animate-spin" />
+            <h2 className="text-2xl font-bold text-purple-900">AI Assistant ✨</h2>
+          </div>
+
+          {aiError && (
+            <div className="mb-4 p-4 bg-red-100 border border-red-300 rounded-lg text-red-800">
+              ⚠️ {aiError}
+            </div>
+          )}
+
+          <p className="text-gray-700 mb-6">
+            Get AI-powered tips to achieve your goal faster, or improve your goal to make it more SMART!
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <button
+              onClick={getAiTips}
+              disabled={aiLoading}
+              className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${
+                aiLoading
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl'
+              }`}
+            >
+              {aiLoading ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  Getting Tips...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="w-5 h-5" />
+                  💡 Get Progress Tips
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={improveGoal}
+              disabled={aiLoading}
+              className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${
+                aiLoading
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl'
+              }`}
+            >
+              {aiLoading ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  Improving...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  ✨ Improve Goal
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* AI Tips Display */}
+          {showAiTips && aiTips && (
+            <div className="bg-white border-2 border-purple-200 rounded-xl p-6 mb-4">
+              <button
+                onClick={() => setShowAiTips(!showAiTips)}
+                className="flex items-center justify-between w-full mb-4 cursor-pointer"
+              >
+                <h3 className="text-lg font-bold text-purple-900">💡 AI Suggestions</h3>
+                <ChevronDown className={`w-5 h-5 transition-transform ${showAiTips ? 'rotate-180' : ''}`} />
+              </button>
+              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {aiTips}
+              </p>
+            </div>
+          )}
+
+          {/* Improved Goal Display */}
+          {improvedGoal && (
+            <div className="bg-white border-2 border-purple-200 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-purple-900 mb-4">✨ Improved Goal</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-600">📌 Better Title:</p>
+                  <p className="text-lg font-bold text-gray-900 mt-1">{improvedGoal.improvedTitle}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-gray-600">📝 Improved Description:</p>
+                  <p className="text-gray-800 mt-1">{improvedGoal.improvedDescription}</p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600">⏱️ Timeline:</p>
+                    <p className="text-lg font-bold text-gray-900 mt-1">{improvedGoal.timelineWeeks} weeks</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600">ℹ️ Why Better:</p>
+                    <p className="text-gray-800 mt-1">{improvedGoal.whyBetter}</p>
+                  </div>
+                </div>
+
+                {improvedGoal.benefits && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600 mb-2">🎯 Key Benefits:</p>
+                    <ul className="space-y-2">
+                      {improvedGoal.benefits.map((benefit: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-gray-800">
+                          <span className="text-green-600 font-bold">✓</span>
+                          <span>{benefit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    setEditData({
+                      ...editData,
+                      title: improvedGoal.improvedTitle,
+                      description: improvedGoal.improvedDescription
+                    })
+                    setIsEditing(true)
+                    setImprovedGoal(null)
+                  }}
+                  className="w-full mt-4 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-colors"
+                >
+                  👍 Use This Improved Goal
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Budget */}
