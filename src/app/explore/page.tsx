@@ -20,7 +20,7 @@ export default function ExplorePage() {
             <ArrowLeft className="w-4 h-4" />
             Back to Home
           </Link>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Explore Community</h1>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Preview Community</h1>
         </div>
       </div>
 

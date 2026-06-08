@@ -16,6 +16,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   goals        Goal[]
+  followers    Follow[] @relation("following")
+  following    Follow[] @relation("follower")
+  chats        ChatParticipant[]
+  messages     Message[]
 }
 
 model Goal {

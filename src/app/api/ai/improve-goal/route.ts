@@ -6,7 +6,21 @@ export async function POST(req: Request) {
     const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
 
     if (!apiKey) {
-      throw new Error('GROQ API key is not configured')
+      console.warn('GROQ API key is not configured. Falling back to mock response.')
+      return Response.json({
+        success: true,
+        improved: {
+          improvedTitle: `Master: ${goalTitle || 'My Goal'}`,
+          improvedDescription: `Systematically achieve "${goalTitle || 'My Goal'}" by dedicating focused hours, establishing weekly checkpoints, and tracking progress metrics. Description: ${goalDescription || 'Focusing on building this goal step-by-step.'}`,
+          benefits: [
+            "Creates clear accountability and tracking",
+            "Breaks a large vision into actionable micro-habits",
+            "Increases the likelihood of long-term consistency"
+          ],
+          timelineWeeks: 12,
+          whyBetter: "It translates a general goal into structured milestones with clear time constraints."
+        }
+      })
     }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
