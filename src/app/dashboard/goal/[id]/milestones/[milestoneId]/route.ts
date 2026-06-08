@@ -4,16 +4,17 @@ import { verifyToken } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; milestoneId: string } }
+  { params }: { params: Promise<{ id: string; milestoneId: string }> }
 ) {
   try {
+    const { id: goalId, milestoneId } = await params
     const token = request.headers.get('authorization')?.split(' ')[1]
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const decoded = verifyToken(token)
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-    const goal = await prisma.goal.findUnique({ where: { id: params.id } })
+    const goal = await prisma.goal.findUnique({ where: { id: goalId } })
     if (!goal || goal.userId !== decoded.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -21,7 +22,7 @@ export async function PUT(
     const { completed } = await request.json()
 
     const milestone = await prisma.milestone.update({
-      where: { id: params.milestoneId },
+      where: { id: milestoneId },
       data: { completed }
     })
 
@@ -33,21 +34,22 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; milestoneId: string } }
+  { params }: { params: Promise<{ id: string; milestoneId: string }> }
 ) {
   try {
+    const { id: goalId, milestoneId } = await params
     const token = request.headers.get('authorization')?.split(' ')[1]
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const decoded = verifyToken(token)
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-    const goal = await prisma.goal.findUnique({ where: { id: params.id } })
+    const goal = await prisma.goal.findUnique({ where: { id: goalId } })
     if (!goal || goal.userId !== decoded.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    await prisma.milestone.delete({ where: { id: params.milestoneId } })
+    await prisma.milestone.delete({ where: { id: milestoneId } })
 
     return NextResponse.json({ success: true })
   } catch (error) {

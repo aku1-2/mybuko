@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Settings, LogOut, User, Search, Filter, ChevronDown, Check, Trash2, Info, CalendarDays, DollarSign, MapPin, Target, Clock, TrendingUp } from 'lucide-react'
+import { Plus, Settings, LogOut, User, Search, Filter, ChevronDown, Check, Trash2, Info, CalendarDays, DollarSign, MapPin, Target, Clock, TrendingUp, MessageSquare } from 'lucide-react'
 import { useTheme } from '../theme-provider'
 
 export default function DashboardPage() {
@@ -279,6 +279,15 @@ export default function DashboardPage() {
                       Settings
                     </Link>
 
+                    <Link
+                      href="/dashboard/chats"
+                      onClick={() => setShowDropdown(false)}
+                      className={`block px-4 py-2 transition-colors flex items-center gap-2 ${isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Chats
+                    </Link>
+
                     <button
                       onClick={() => {
                         setShowDropdown(false)
@@ -312,16 +321,10 @@ export default function DashboardPage() {
         <div className="mb-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
           <Link
             href="/dashboard/goal/new"
-            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-8 py-5 font-semibold tracking-wide transition ${isDark ? 'bg-gradient-to-r from-violet-700 to-fuchsia-500 text-white hover:opacity-95' : 'bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white hover:shadow-2xl'}`}
+            className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 font-semibold tracking-wide transition ${isDark ? 'bg-gradient-to-r from-violet-700 to-fuchsia-500 text-white hover:opacity-95' : 'bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white hover:shadow-lg'}`}
           >
             <Plus className="w-5 h-5" />
             Add New Goal
-          </Link>
-          <Link
-            href="/explore"
-            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-8 py-5 font-semibold tracking-wide transition ${isDark ? 'bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700' : 'bg-white text-gray-900 border border-gray-200 hover:bg-gray-50'}`}
-          >
-            Explore
           </Link>
         </div>
 

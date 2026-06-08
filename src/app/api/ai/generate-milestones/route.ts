@@ -6,7 +6,17 @@ export async function POST(req: Request) {
     const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
 
     if (!apiKey) {
-      throw new Error('GROQ API key is not configured')
+      console.warn('GROQ API key is not configured. Falling back to mock milestones.')
+      return Response.json({ 
+        success: true, 
+        milestones: [
+          { title: `Define requirements and roadmap for "${goalTitle || 'Goal'}"`, description: "Research the tools, resources, and steps needed.", percentage: 20, actions: ["Search online for guides", "Make a checklist of resources"] },
+          { title: "Initiate daily consistency habit", description: "Establish a fixed time slot daily to work on it.", percentage: 40, actions: ["Block calendar", "Set daily reminder"] },
+          { title: "Mid-way progress checkpoint", description: "Assess initial output and refine techniques.", percentage: 60, actions: ["Write self-reflection notes", "Fix bottleneck areas"] },
+          { title: "Advanced implementation phase", description: "Scale up speed and quality.", percentage: 80, actions: ["Complete the complex parts", "Get peer feedback"] },
+          { title: "Final achievement & celebration", description: "Complete all final items and log in MyBuko.", percentage: 100, actions: ["Verify completion", "Share story with the preview community"] }
+        ]
+      })
     }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

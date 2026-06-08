@@ -15,14 +15,17 @@ model User {
   profileImage String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  goals        Goal[]
-  stories      Story[]
-  followers    Follow[] @relation("following")
-  following      Follow[] @relation("follower")
+
+  goals            Goal[]
+  stories          Story[]
+  storyLikes       StoryLike[]
+  storyComments    StoryComment[]
+
+  followers        Follow[] @relation("following")
+  following        Follow[] @relation("follower")
+
   chatParticipants ChatParticipant[]
   sentMessages     Message[]
-  storyLikes    StoryLike[]
-storyComments StoryComment[]
 }
 model Story {
   id        String   @id @default(cuid())
@@ -42,13 +45,13 @@ model StoryLike {
   storyId   String
   userId    String
   createdAt DateTime @default(now())
-  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([storyId, userId])
   @@index([storyId])
 }
-
 model StoryComment {
   id        String   @id @default(cuid())
   storyId   String
@@ -144,13 +147,15 @@ model ChatParticipant {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  chatId    String
-  senderId  String
-  text      String?
-  fileUrl   String?
-  fileType  String?
-  createdAt DateTime @default(now())
+  id                 String   @id @default(cuid())
+  chatId             String
+  senderId           String
+  text               String?
+  fileUrl            String?
+  fileType           String?
+  createdAt          DateTime @default(now())
+  deletedForEveryone Boolean  @default(false)
+  deletedFor         String   @default("")
 
   chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)

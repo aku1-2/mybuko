@@ -6,7 +6,24 @@ export async function POST(req: Request) {
     const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
 
     if (!apiKey) {
-      throw new Error('GROQ API key is not configured')
+      console.warn('GROQ API key is not configured. Falling back to mock tips.')
+      return Response.json({ 
+        success: true, 
+        tips: `### Progress Analysis
+You are doing great! With **${currentProgress || 0}%** progress over **${daysActive || 1}** active days, you are building momentum. The key is to keep taking small actions.
+
+### Recommended Next Steps
+1. **Focus on the next milestone**: Pick the closest unchecked milestone and dedicate 30 minutes to it.
+2. **Review your timeline**: Ensure your target date is realistic and adjust if necessary.
+3. **Share your progress**: Log a quick note or share an update with peers to keep accountability.
+
+### Motivational Quote
+> "Success is the sum of small efforts, repeated day in and day out." — Robert Collier
+
+### Potential Obstacles
+* **Loss of Motivation**: Prevent this by tracking your small wins and visual progress bar.
+* **Lack of Time**: Allocate just 15 minutes of uninterrupted focus in the morning.`
+      })
     }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

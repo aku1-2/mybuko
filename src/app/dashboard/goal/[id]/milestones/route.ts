@@ -4,9 +4,10 @@ import { verifyToken } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: goalId } = await params
     const token = request.headers.get('authorization')?.split(' ')[1]
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -15,17 +16,17 @@ export async function POST(
 
     const { title } = await request.json()
 
-    const goal = await prisma.goal.findUnique({ where: { id: params.id } })
+    const goal = await prisma.goal.findUnique({ where: { id: goalId } })
     if (!goal || goal.userId !== decoded.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const milestoneCount = await prisma.milestone.count({ where: { goalId: params.id } })
+    const milestoneCount = await prisma.milestone.count({ where: { goalId } })
 
     const milestone = await prisma.milestone.create({
       data: {
         title,
-        goalId: params.id,
+        goalId,
         order: milestoneCount
       }
     })

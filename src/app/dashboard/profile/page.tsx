@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import { User, Award, CheckCircle, Pencil, Check, X } from 'lucide-react'
+import { User, Award, CheckCircle, Pencil, Check, X, ArrowLeft, MessageSquare, Globe } from 'lucide-react'
 import { useTheme } from '../../theme-provider'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -42,6 +42,11 @@ export default function ProfilePage() {
   const [followingList, setFollowingList] = useState<any[]>([])
   const [saveMessage, setSaveMessage] = useState('')
   const hiddenFileInputRef = useRef<HTMLInputElement | null>(null)
+
+  // Followers & Following Lists Modal States
+  const [showModal, setShowModal] = useState<'followers' | 'following' | null>(null)
+  const [modalUsersList, setModalUsersList] = useState<any[]>([])
+  const [modalLoading, setModalLoading] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -197,9 +202,112 @@ export default function ProfilePage() {
     setIsBioEditing(false)
   }
 
+  const handleOpenListModal = async (type: 'followers' | 'following') => {
+    if (!user) return
+    setShowModal(type)
+    setModalLoading(true)
+    setModalUsersList([])
+
+    try {
+      const url = `/api/users/${user.id}/${type}`
+      const res = await fetch(url)
+      if (res.ok) {
+        const data = await res.json()
+        setModalUsersList(data[type] || [])
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  const handleFollowToggleInModal = async (targetId: string, isCurrentlyFollowing: boolean) => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    // Optimistically update followings in UI
+    if (isCurrentlyFollowing) {
+      setFollowingList((prev) => prev.filter((item) => item.id !== targetId))
+    } else {
+      const usr = modalUsersList.find((u) => u.id === targetId) || followers.find((u) => u.id === targetId)
+      if (usr) {
+        setFollowingList((prev) => [...prev, usr])
+      }
+    }
+
+    try {
+      if (isCurrentlyFollowing) {
+        const res = await fetch(`/api/follow?followingId=${encodeURIComponent(targetId)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (!res.ok) throw new Error()
+      } else {
+        const res = await fetch('/api/follow', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ followingId: targetId })
+        })
+        if (!res.ok) throw new Error()
+      }
+      
+      // Quietly sync lists
+      if (user) {
+        const resF = await fetch(`/api/users/${user.id}/followers`)
+        if (resF.ok) {
+          const data = await resF.json()
+          setFollowers(data.followers || [])
+        }
+        const resG = await fetch(`/api/users/${user.id}/following`)
+        if (resG.ok) {
+          const data = await resG.json()
+          setFollowingList(data.following || [])
+          if (showModal === 'following') {
+            setModalUsersList(data.following || [])
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   return (
     <div className={`min-h-screen ${isDark ? 'bg-slate-900 text-slate-200' : 'bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 text-gray-900'} p-8`}>
       <div className="max-w-5xl mx-auto">
+        
+        {/* Navigation Breadcrumb */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <Link
+            href="/dashboard"
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/chats"
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-250 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
+            >
+              <MessageSquare className="w-4 h-4 text-blue-500" />
+              Chats
+            </Link>
+            <Link
+              href="/explore"
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-250 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
+            >
+              <Globe className="w-4 h-4 text-emerald-500" />
+              Community
+            </Link>
+          </div>
+        </div>
+
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between mb-8">
           <div>
             <h1 className={`text-4xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Profile</h1>
@@ -319,19 +427,27 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex items-center gap-6">
-                <Link href="/dashboard/profile/followers" className="group">
+                <button
+                  type="button"
+                  onClick={() => handleOpenListModal('followers')}
+                  className="text-left group focus:outline-none"
+                >
                   <div>
                     <p className={`text-2xl font-bold group-hover:underline ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{followers.length}</p>
                     <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'} text-sm`}>Followers</p>
                   </div>
-                </Link>
+                </button>
 
-                <Link href="/dashboard/profile/following" className="group">
+                <button
+                  type="button"
+                  onClick={() => handleOpenListModal('following')}
+                  className="text-left group focus:outline-none"
+                >
                   <div>
                     <p className={`text-2xl font-bold group-hover:underline ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{followingList.length}</p>
                     <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'} text-sm`}>Following</p>
                   </div>
-                </Link>
+                </button>
 
                 <div className="ml-auto flex items-center gap-2">
                   {followers.slice(0,5).map((f) => (
@@ -413,6 +529,73 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Followers / Following Modals */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className={`w-full max-w-md rounded-[32px] overflow-hidden border shadow-2xl transition-all ${isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-gray-150 text-gray-900'}`}>
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-opacity-50 dark:border-slate-800 border-gray-200">
+              <h3 className="text-lg font-bold capitalize">{showModal}</h3>
+              <button
+                type="button"
+                onClick={() => setShowModal(null)}
+                className={`p-2 rounded-full transition ${isDark ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="p-6 max-h-[50vh] overflow-y-auto space-y-4">
+              {modalLoading ? (
+                <p className="text-center text-slate-400 animate-pulse text-sm">Fetching list...</p>
+              ) : modalUsersList.length === 0 ? (
+                <p className="text-center text-slate-400 text-sm">No users found.</p>
+              ) : (
+                modalUsersList.map((usr) => (
+                  <div
+                    key={usr.id}
+                    onClick={() => {
+                      setShowModal(null)
+                      router.push(`/dashboard/profile/${usr.id}`)
+                    }}
+                    className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${isDark ? 'bg-slate-900/60 border-slate-800 hover:bg-slate-850' : 'bg-gray-50 border-gray-100 hover:bg-gray-100/60'}`}
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                        {usr.name.split(' ').map((s:string) => s[0]).join('').slice(0, 2)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate text-sm">{usr.name}</p>
+                        <p className="text-xs text-slate-450 truncate">{usr.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {usr.id !== user.id && (() => {
+                        const isFollowingUsr = followingList.some((f) => f.id === usr.id)
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => handleFollowToggleInModal(usr.id, isFollowingUsr)}
+                            className={`px-4 py-1.5 rounded-full font-semibold text-xs transition ${isFollowingUsr ? (isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-650' : 'bg-gray-150 text-gray-700 hover:bg-gray-200') : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                          >
+                            {isFollowingUsr ? 'Following' : 'Follow'}
+                          </button>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
