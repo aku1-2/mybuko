@@ -16,8 +16,50 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   goals        Goal[]
+  stories      Story[]
+  followers    Follow[] @relation("following")
+  following      Follow[] @relation("follower")
+  chatParticipants ChatParticipant[]
+  sentMessages     Message[]
+  storyLikes    StoryLike[]
+storyComments StoryComment[]
+}
+model Story {
+  id        String   @id @default(cuid())
+  mediaUrl  String
+  mediaType String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes     StoryLike[]
+  comments  StoryComment[]
+
+  @@index([userId])
+}
+model StoryLike {
+  id        String   @id @default(cuid())
+  storyId   String
+  userId    String
+  createdAt DateTime @default(now())
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@index([storyId])
 }
 
+model StoryComment {
+  id        String   @id @default(cuid())
+  storyId   String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  story     Story    @relation(fields:[storyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+}
 model Goal {
   id            String      @id @default(cuid())
   title         String
