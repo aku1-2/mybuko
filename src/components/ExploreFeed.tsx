@@ -144,6 +144,7 @@ export default function ExploreFeed() {
   const [submitted, setSubmitted] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
   const [goalJoined, setGoalJoined] = useState(false)
+  const [joinedTrends, setJoinedTrends] = useState<string[]>([])
   const [activeTrendingGoal, setActiveTrendingGoal] = useState<TrendingGoal>(TRENDING_GOALS[0])
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({})
   const [activeCommentPost, setActiveCommentPost] = useState<number | null>(null)
@@ -454,6 +455,21 @@ export default function ExploreFeed() {
     setActiveCommentPost(postId)
   }
 
+  const isTrendingGoalJoined = joinedTrends.includes(activeTrendingGoal.id) || (() => {
+    try {
+      const joinedKey = 'mybuko-joined-goals'
+      const existing = typeof window !== 'undefined' ? localStorage.getItem(joinedKey) : null
+      if (!existing) return false
+      const parsed = JSON.parse(existing) as any[]
+      const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+      const currentUser = storedUser ? JSON.parse(storedUser) : null
+      if (!currentUser) return false
+      return parsed.some((g: any) => g.title === activeTrendingGoal.title && (g.ownerEmail === currentUser.email || g.ownerName === currentUser.name))
+    } catch {
+      return false
+    }
+  })()
+
   return (
     <section id="explore" className="py-20 bg-gradient-to-br from-emerald-50 via-white to-emerald-100 dark:from-slate-950 dark:via-slate-900 transition-colors duration-300">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -578,12 +594,18 @@ export default function ExploreFeed() {
                     type="button"
                     onClick={() => {
                       if (!isLoggedIn) return
+                      joinGoal({
+                        title: activeTrendingGoal.title,
+                        description: activeTrendingGoal.subtitle,
+                        category: 'Skills'
+                      })
+                      setJoinedTrends(prev => [...prev, activeTrendingGoal.id])
                       setText(`I am working on ${activeTrendingGoal.title}! ${activeTrendingGoal.subtitle}`)
                     }}
                     disabled={!isLoggedIn}
                     className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white shadow transition ${isLoggedIn ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-slate-400 cursor-not-allowed'}`}
                   >
-                    {isLoggedIn ? 'Start this trend' : 'Login to unlock'}
+                    {isTrendingGoalJoined ? 'Started ✓' : isLoggedIn ? 'Start this trend' : 'Login to unlock'}
                   </button>
                 </div>
               </div>
