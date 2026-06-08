@@ -2,9 +2,19 @@
 
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { useTheme } from '../theme-provider'
-import ExploreFeed from '@/components/ExploreFeed'
+
 import StoriesBar from '@/components/StoriesBar'
+
+const ExploreFeed = dynamic(() => import('@/components/ExploreFeed'), {
+  ssr: false,
+  loading: () => (
+    <div className="text-center py-10">
+      Loading community feed...
+    </div>
+  ),
+})
 
 export default function ExplorePage() {
   const { theme } = useTheme()
@@ -21,7 +31,7 @@ export default function ExplorePage() {
             <ArrowLeft className="w-4 h-4" />
             Back to Home
           </Link>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Explore Community</h1>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Preview Community</h1>
         </div>
       </div>
 

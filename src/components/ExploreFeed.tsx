@@ -3,7 +3,8 @@
 import type { ChangeEvent, FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ImagePlus, Heart, Send, Camera, TrendingUp, Trophy, Users } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ImagePlus, Heart, Send, Camera, TrendingUp, Trophy, Users, MessageSquare } from 'lucide-react'
 
 type Comment = {
   id: number
@@ -118,8 +119,66 @@ const initialPosts: Post[] = [
 ]
 
 export default function ExploreFeed() {
+  const router = useRouter()
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [author, setAuthor] = useState('')
+  const [isMounted, setIsMounted] = useState(false)
+  const [hasLoadedPosts, setHasLoadedPosts] = useState(false)
+
+  const handleUserClick = async (email: string | undefined) => {
+    if (!email) {
+      alert("This is a seed post template. You can view profiles and start chats with registered members who post on the feed!")
+      return
+    }
+    try {
+      const res = await fetch(`/api/users/by-email?email=${encodeURIComponent(email)}`)
+      if (res.ok) {
+        const data = await res.json()
+        router.push(`/dashboard/profile/${data.id}`)
+      }
+    } catch (err) {
+      console.error('User profile redirect failed:', err)
+    }
+  }
+
+  const handleMessageClick = async (email: string | undefined) => {
+    if (!email) return
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/auth/login')
+      return
+    }
+
+    try {
+      const userRes = await fetch(`/api/users/by-email?email=${encodeURIComponent(email)}`)
+      if (!userRes.ok) {
+        alert('Could not find user details.')
+        return
+      }
+      const userData = await userRes.json()
+      
+      const chatRes = await fetch('/api/chats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ participantId: userData.id }),
+      })
+
+      if (chatRes.ok) {
+        const chatData = await chatRes.json()
+        router.push(`/dashboard/chats/${chatData.chat.id}`)
+      } else if (chatRes.status === 403) {
+        alert('Chatting is only allowed between mutual followers. Make sure you follow each other!')
+      } else {
+        alert('Unable to start a conversation with this user.')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error initiating chat room.')
+    }
+  }
   const [currentUserName, setCurrentUserName] = useState('')
   const [currentUserEmail, setCurrentUserEmail] = useState('')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -129,6 +188,7 @@ export default function ExploreFeed() {
   const [submitted, setSubmitted] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
   const [goalJoined, setGoalJoined] = useState(false)
+  const [joinedTrends, setJoinedTrends] = useState<string[]>([])
   const [activeTrendingGoal, setActiveTrendingGoal] = useState<TrendingGoal>(TRENDING_GOALS[0])
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({})
   const [activeCommentPost, setActiveCommentPost] = useState<number | null>(null)
@@ -138,7 +198,30 @@ export default function ExploreFeed() {
   const [publicGoalsError, setPublicGoalsError] = useState('')
 
   useEffect(() => {
+    setIsMounted(true)
     if (typeof window === 'undefined') return
+
+    // Load posts from local storage on client side after mounting
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored) as Post[]
+        const cleaned = parsed
+          .map((post) => ({
+            ...post,
+            comments: post.comments ?? [],
+            liked: post.liked ?? false,
+          }))
+          .filter((post) => {
+            return !(
+              (post.author === 'Meera' && post.text.includes('The experience feed feels so lively')) ||
+              post.author === 'Vikram'
+            )
+          })
+        setPosts(cleaned)
+      }
+    } catch {}
+    setHasLoadedPosts(true)
 
     const fetchPublicGoals = async () => {
       setPublicGoalsLoading(true)
@@ -159,27 +242,6 @@ export default function ExploreFeed() {
 
     fetchPublicGoals()
 
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored) as Post[]
-        const cleaned = parsed
-          .map((post) => ({
-            ...post,
-            comments: post.comments ?? [],
-            liked: post.liked ?? false,
-          }))
-          .filter((post) => {
-            return !(
-              (post.author === 'Meera' && post.text.includes('The experience feed feels so lively')) ||
-              post.author === 'Vikram'
-            )
-          })
-        setPosts(cleaned)
-      }
-    } catch {
-      // ignore local storage read errors
-    }
     const storedFollowing = window.localStorage.getItem(FOLLOWING_KEY)
     if (storedFollowing) {
       try {
@@ -198,7 +260,28 @@ export default function ExploreFeed() {
       if (parsedUser?.email) {
         setCurrentUserEmail(parsedUser.email)
       }
-      setIsLoggedIn(Boolean(parsedUser && storedToken))
+      const loggedIn = Boolean(parsedUser && storedToken)
+      setIsLoggedIn(loggedIn)
+
+      if (loggedIn && parsedUser?.id) {
+        const fetchDbFollowing = async () => {
+          try {
+            const res = await fetch(`/api/users/${parsedUser.id}/following`)
+            if (res.ok) {
+              const data = await res.json()
+              const map: Record<string, boolean> = {}
+              ;(data.following || []).forEach((f: any) => {
+                map[f.name] = true
+                if (f.email) map[f.email] = true
+              })
+              setFollowing(map)
+            }
+          } catch (err) {
+            console.error('Failed to sync following list from DB:', err)
+          }
+        }
+        fetchDbFollowing()
+      }
     } catch {
       // ignore user load errors
     }
@@ -206,19 +289,23 @@ export default function ExploreFeed() {
 
   async function toggleFollow(post: Post) {
     const author = post.author
+    const email = post.authorEmail || ''
+    const isNowFollowing = !(following[email] || following[author])
+
     // optimistic UI
-    setFollowing((prev) => ({ ...prev, [author]: !prev[author] }))
+    setFollowing((prev) => ({ 
+      ...prev, 
+      [author]: isNowFollowing,
+      ...(email ? { [email]: isNowFollowing } : {})
+    }))
 
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-      // If we have an author email and a token, try server-side follow
-      if (token && post.authorEmail) {
-        // lookup user id by email
-        const lookup = await fetch(`/api/users/by-email?email=${encodeURIComponent(post.authorEmail)}`)
+      if (token && email) {
+        const lookup = await fetch(`/api/users/by-email?email=${encodeURIComponent(email)}`)
         if (lookup.ok) {
           const data = await lookup.json()
           const targetId = data.id
-          const isNowFollowing = !following[author]
           if (isNowFollowing) {
             await fetch('/api/follow', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ followingId: targetId }) })
           } else {
@@ -228,8 +315,13 @@ export default function ExploreFeed() {
         }
       }
     } catch (err) {
-      // ignore server errors and keep local state
       console.error('Follow API error', err)
+      // Rollback
+      setFollowing((prev) => ({ 
+        ...prev, 
+        [author]: !isNowFollowing,
+        ...(email ? { [email]: !isNowFollowing } : {})
+      }))
     }
   }
 
@@ -242,13 +334,14 @@ export default function ExploreFeed() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (!hasLoadedPosts) return
 
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(posts))
     } catch {
       // ignore local storage write errors
     }
-  }, [posts])
+  }, [posts, hasLoadedPosts])
 
   const canSubmit = isLoggedIn && author.trim().length > 0 && text.trim().length > 0
 
@@ -274,7 +367,7 @@ export default function ExploreFeed() {
     }
 
     setPosts((currentPosts) => [newPost, ...currentPosts])
-    setAuthor('')
+    setAuthor(currentUserName)
     setText('')
     setImage('')
     setImageName('')
@@ -373,10 +466,7 @@ export default function ExploreFeed() {
     }
   }
 
-  const visiblePosts = posts.filter((post) => {
-    if (!currentUserName && !currentUserEmail) return true
-    return post.authorEmail !== currentUserEmail && post.author !== currentUserName
-  })
+  const visiblePosts = posts
 
   const handleCommentChange = (postId: number, value: string) => {
     setCommentDrafts((drafts) => ({ ...drafts, [postId]: value }))
@@ -409,13 +499,28 @@ export default function ExploreFeed() {
     setActiveCommentPost(postId)
   }
 
+  const isTrendingGoalJoined = joinedTrends.includes(activeTrendingGoal.id) || (() => {
+    try {
+      const joinedKey = 'mybuko-joined-goals'
+      const existing = typeof window !== 'undefined' ? localStorage.getItem(joinedKey) : null
+      if (!existing) return false
+      const parsed = JSON.parse(existing) as any[]
+      const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+      const currentUser = storedUser ? JSON.parse(storedUser) : null
+      if (!currentUser) return false
+      return parsed.some((g: any) => g.title === activeTrendingGoal.title && (g.ownerEmail === currentUser.email || g.ownerName === currentUser.name))
+    } catch {
+      return false
+    }
+  })()
+
   return (
     <section id="explore" className="py-20 bg-gradient-to-br from-emerald-50 via-white to-emerald-100 dark:from-slate-950 dark:via-slate-900 transition-colors duration-300">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 font-semibold text-sm shadow-sm ring-1 ring-emerald-200">
             <Camera className="w-4 h-4" />
-            Explore Stories
+             Preview Stories
           </div>
           <h2 className="mt-5 text-4xl md:text-5xl font-bold text-slate-900 tracking-tight dark:text-white">
             Share your experience with MyBuko
@@ -430,96 +535,66 @@ export default function ExploreFeed() {
           ) : null}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 items-start">
+        <div className="relative">
+          {/* Locked Overlay */}
+          {!isLoggedIn && (
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/70 backdrop-blur-md dark:bg-slate-950/75 p-6 rounded-[2.5rem]">
+              <div className="max-w-md text-center space-y-6">
+                <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-inner">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Community feed is locked</h3>
+                <p className="text-slate-650 dark:text-slate-300 leading-relaxed text-sm">
+                  Sign in or create an account to view and participate in community stories, see trending goals, follow peers, and share your own experiences.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Link
+                    href="/auth/login"
+                    className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+                  >
+                    Login to unlock
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="px-6 py-3 border border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 rounded-full font-semibold hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
+                  >
+                    Create an account
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className={!isLoggedIn ? "filter blur-md select-none pointer-events-none opacity-40 transition-all duration-305" : ""}>
+            <div className="grid lg:grid-cols-2 gap-6 items-start">
           <div className="flex flex-col gap-4">
-            <div className="rounded-3xl border border-emerald-200 bg-white/90 p-6 shadow-[0_20px_60px_-35px_rgba(16,185,129,0.45)] transition hover:-translate-y-1 hover:shadow-[0_24px_70px_-35px_rgba(16,185,129,0.35)] dark:border-emerald-400/20 dark:bg-slate-950/90">
+            <div className="rounded-[32px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-teal-50/50 p-8 shadow-[0_20px_60px_-35px_rgba(16,185,129,0.35)] dark:border-emerald-450/20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950/80">
               <div className="flex items-center justify-between gap-4 mb-6">
                 <div>
-                  <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Share your story</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">A simple post to show how MyBuko helped you grow.</p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Share your story</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Write about how MyBuko helped you grow and succeed.</p>
                 </div>
                 <div className="rounded-2xl bg-emerald-100 px-4 py-2 text-emerald-700 font-semibold text-sm">
                   + Good Vibes
                 </div>
               </div>
 
-              {!isLoggedIn && (
-                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 mb-4">
-                  <p className="font-semibold">Login or sign up to unlock the full Explore community.</p>
-                  <p className="mt-2 text-slate-600 dark:text-rose-800">Posting stories, joining trending goals, and sharing your progress are available only after logging in.</p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <Link href="/auth/login" className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700">
-                      Login
-                    </Link>
-                    <Link href="/auth/signup" className="rounded-full border border-rose-600 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-600 hover:text-white">
-                      Sign up
-                    </Link>
-                  </div>
-                </div>
-              )}
-
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Your Name
-                    <input
-                      value={author}
-                      onChange={(e) => setAuthor(e.target.value)}
-                      placeholder={isLoggedIn ? 'Ananya' : 'Login to unlock posting'}
-                      disabled={!isLoggedIn}
-                      className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                  </label>
-                  <label className="space-y-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Add a photo (optional)
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className={`inline-flex items-center gap-2 rounded-full border px-4 py-3 text-sm font-semibold shadow-lg transition focus:outline-none focus:ring-4 focus:ring-emerald-200 ${isLoggedIn ? 'cursor-pointer border-emerald-300 bg-emerald-600 text-white shadow-emerald-500/20 hover:-translate-y-0.5 hover:bg-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400' : 'cursor-not-allowed border-emerald-200 bg-emerald-100 text-slate-500 opacity-60'}`}>
-                        <ImagePlus className="w-4 h-4" />
-                        Choose photo
-                      </label>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">{imageName || 'No file selected yet'}</span>
-                    </div>
-                    <input
-                      id="explore-image-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      disabled={!isLoggedIn}
-                      className="sr-only"
-                    />
-                  </label>
-                </div>
-
-                <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Your Experience
-                  <textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    rows={5}
-                    placeholder={isLoggedIn ? 'Tell us how MyBuko helped you plan something special...' : 'Login to unlock story posting'}
-                    disabled={!isLoggedIn}
-                    className="w-full rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-emerald-500/30 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-                </label>
-
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Your story will appear instantly for the community.</p>
-                  <button
-                    type="submit"
-                    disabled={!canSubmit}
-                    className={`inline-flex items-center justify-center gap-2 rounded-3xl px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition disabled:cursor-not-allowed disabled:opacity-60 ${canSubmit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-400'}`}
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600 dark:text-slate-350 leading-relaxed">
+                  Every story shared inspires fellow goal-builders in the community to stay consistent, build habits, and complete their bucket lists.
+                </p>
+                <div className="pt-2">
+                  <Link
+                    href={isLoggedIn ? "/explore/create" : "/auth/login"}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0"
                   >
-                    <Send className="w-4 h-4" />
-                    Share Post
-                  </button>
+                    <Camera className="w-4 h-4" />
+                    {isLoggedIn ? "Create a Story" : "Log in to post a story"}
+                  </Link>
                 </div>
-
-                {submitted && (
-                  <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
-                    Your story is live! Thank you for sharing.
-                  </p>
-                )}
-              </form>
+              </div>
             </div>
           </div>
 
@@ -563,12 +638,18 @@ export default function ExploreFeed() {
                     type="button"
                     onClick={() => {
                       if (!isLoggedIn) return
+                      joinGoal({
+                        title: activeTrendingGoal.title,
+                        description: activeTrendingGoal.subtitle,
+                        category: 'Skills'
+                      })
+                      setJoinedTrends(prev => [...prev, activeTrendingGoal.id])
                       setText(`I am working on ${activeTrendingGoal.title}! ${activeTrendingGoal.subtitle}`)
                     }}
-                    disabled={!isLoggedIn}
-                    className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white shadow transition ${isLoggedIn ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-slate-400 cursor-not-allowed'}`}
+                    disabled={!isMounted ? true : !isLoggedIn}
+                    className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white shadow transition ${(!isMounted || !isLoggedIn) ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800'}`}
                   >
-                    {isLoggedIn ? 'Start this trend' : 'Login to unlock'}
+                    {!isMounted ? 'Login to unlock' : isTrendingGoalJoined ? 'Started ✓' : isLoggedIn ? 'Start this trend' : 'Login to unlock'}
                   </button>
                 </div>
               </div>
@@ -626,7 +707,7 @@ export default function ExploreFeed() {
             </div>
           ) : publicGoals.length === 0 && !publicGoalsLoading ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-              No public goals are visible yet. Create a goal and mark it public to appear in Explore.
+               No public goals are visible yet. Create a goal and mark it public to appear in Preview Community.
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -649,7 +730,12 @@ export default function ExploreFeed() {
                     <span>{goal.status || 'Not Started'}</span>
                     <span>Progress: {goal.progress ?? 0}%</span>
                     {goal.budget != null && <span>Budget ₹{goal.budget.toLocaleString()}</span>}
-                    <span>By {goal.user?.name || 'Community'}</span>
+                    <span
+                      onClick={() => handleUserClick(goal.user?.email)}
+                      className={goal.user?.email ? "cursor-pointer hover:underline text-emerald-700 dark:text-emerald-400 font-semibold" : ""}
+                    >
+                      By {goal.user?.name || 'Community'}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -677,7 +763,7 @@ export default function ExploreFeed() {
           <div className="grid gap-6 lg:grid-cols-2">
             {visiblePosts.length === 0 ? (
               <div className="rounded-3xl border border-emerald-200 bg-white p-6 text-center text-slate-700 shadow-xl dark:border-emerald-400/20 dark:bg-slate-950 dark:text-slate-200">
-                No posts yet. Share your story to appear in the Explore feed.
+                 No posts yet. Share your story to appear in the Preview Community feed.
               </div>
             ) : visiblePosts.map((post) => (
               <article
@@ -686,8 +772,8 @@ export default function ExploreFeed() {
               >
                 <div className="px-6 py-5 sm:px-8 sm:py-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 font-semibold">
+                    <div className="flex items-start gap-4 cursor-pointer" onClick={() => handleUserClick(post.authorEmail)}>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 font-semibold transition hover:scale-105">
                         {post.author
                           .split(' ')
                           .map((word) => word[0])
@@ -695,17 +781,29 @@ export default function ExploreFeed() {
                           .slice(0, 2)}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">{post.author}</p>
+                        <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100 hover:underline">{post.author}</p>
                         <p className="truncate text-sm text-slate-500 dark:text-slate-400">{post.role} • {post.date}</p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleFollow(post.author)}
-                      className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition ${following[post.author] ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'}`}
-                    >
-                      {following[post.author] ? 'Following' : 'Follow'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {post.authorEmail && post.authorEmail !== currentUserEmail && (
+                        <button
+                          type="button"
+                          onClick={() => handleMessageClick(post.authorEmail)}
+                          className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 hover:border-slate-350 hover:bg-slate-50 transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
+                          title="Send Message"
+                        >
+                          <MessageSquare className="w-4 h-4 text-blue-500" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => toggleFollow(post)}
+                        className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition ${following[post.authorEmail || ''] || following[post.author] ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'}`}
+                      >
+                        {following[post.authorEmail || ''] || following[post.author] ? 'Following' : 'Follow'}
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-4">
                     <p className="text-slate-700 leading-relaxed dark:text-slate-300">{post.text}</p>
@@ -779,6 +877,8 @@ export default function ExploreFeed() {
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
+</section>
   )
 }
