@@ -9,7 +9,6 @@ import {
     Mountain, Palette, Plane, ChevronRight, Lock,
     Moon, Sun
 } from 'lucide-react'
-
 export default function LandingPage() {
     const { theme, setTheme } = useTheme()
     const [isLoggedIn, setIsLoggedIn] = useState(false)

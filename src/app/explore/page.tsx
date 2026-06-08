@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { useTheme } from '../theme-provider'
 import ExploreFeed from '@/components/ExploreFeed'
+import StoriesBar from '@/components/StoriesBar'
 
 export default function ExplorePage() {
   const { theme } = useTheme()
@@ -25,14 +26,7 @@ export default function ExplorePage() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-sm uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400 font-semibold">Community Feed</p>
-          <h2 className="mt-4 text-4xl font-bold text-slate-900 dark:text-white">Stories from fellow goal-builders</h2>
-          <p className="mt-3 text-lg leading-8 text-slate-600 dark:text-slate-300">
-            Discover inspiration, learn from others, and join conversations just like a modern feed experience.
-          </p>
-        </div>
-
+        <StoriesBar />
         <ExploreFeed />
       </main>
     </div>
