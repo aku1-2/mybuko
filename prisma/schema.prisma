@@ -162,6 +162,7 @@ model Message {
 
   @@index([chatId])
   @@index([senderId])
+  @@index([chatId, createdAt])
 }
 
 model File {

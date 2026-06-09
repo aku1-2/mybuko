@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTheme } from '../../../theme-provider'
@@ -12,13 +12,7 @@ import {
   Send,
   Download,
   FileText,
-  Video,
-  Image,
-  Flame,
-  ThumbsUp,
-  Heart,
   Sparkles,
-  PartyPopper,
   Trash2
 } from 'lucide-react'
 
@@ -121,12 +115,58 @@ export default function ChatRoomPage() {
 
   const [user, setUser] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [text, setText] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [fileNameText, setFileNameText] = useState('')
   const [uploading, setUploading] = useState(false)
   const [other, setOther] = useState<any>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+
+  const messagesRef = useRef<any[]>([])
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  const fetchMessages = useCallback(async (isInitial = false) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    if (!token) return
+
+    try {
+      const currentMessages = messagesRef.current
+      const lastMsg = currentMessages[currentMessages.length - 1]
+      const since = !isInitial && lastMsg ? lastMsg.createdAt : ''
+      
+      const url = `/api/chats/${chatId}/messages` + (since ? `?since=${encodeURIComponent(since)}` : '')
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        router.push('/auth/login')
+        return
+      }
+      if (res.ok) {
+        const data = await res.json()
+        if (isInitial || !since) {
+          setMessages(data.messages || [])
+          if (data.other) {
+            setOther(data.other)
+          }
+        } else if (data.messages && data.messages.length > 0) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(m => m.id))
+            const uniqueNew = data.messages.filter((m: any) => !existingIds.has(m.id))
+            if (uniqueNew.length === 0) return prev
+            return [...prev, ...uniqueNew]
+          })
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      if (isInitial) setLoading(false)
+    }
+  }, [chatId, router])
 
   // Custom theme choices (Local state default: classic)
   const [chatTheme, setChatTheme] = useState<ChatTheme>(CHAT_THEMES[0])
@@ -187,31 +227,12 @@ export default function ChatRoomPage() {
       if (match) setChatTheme(match)
     }
 
-    const fetchMessages = async () => {
-      try {
-        const res = await fetch(`/api/chats/${chatId}/messages`, { headers: { Authorization: `Bearer ${token}` } })
-        if (res.status === 401) {
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          router.push('/auth/login')
-          return
-        }
-        if (res.ok) {
-          const data = await res.json()
-          setMessages(data.messages || [])
-          if (data.other) {
-            setOther(data.other)
-          }
-        }
-      } catch (err) {
-        console.error(err)
-      }
-    }
-
-    fetchMessages()
-    const iv = setInterval(fetchMessages, 3000)
+    fetchMessages(true)
+    const iv = setInterval(() => {
+      fetchMessages(false)
+    }, 3000)
     return () => clearInterval(iv)
-  }, [chatId, router])
+  }, [chatId, router, fetchMessages])
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
@@ -242,12 +263,8 @@ export default function ChatRoomPage() {
       body: JSON.stringify({ text: '', fileUrl, fileType })
     })
 
-    // Refresh messages
-    const res = await fetch(`/api/chats/${chatId}/messages`, { headers: { Authorization: `Bearer ${token}` } })
-    if (res.ok) {
-      const data = await res.json()
-      setMessages(data.messages || [])
-    }
+    // Refresh messages (incremental)
+    await fetchMessages(false)
   }
 
   const sendMessage = async () => {
@@ -284,11 +301,8 @@ export default function ChatRoomPage() {
       setFile(null)
       setFileNameText('')
       
-      const res = await fetch(`/api/chats/${chatId}/messages`, { headers: { Authorization: `Bearer ${token}` } })
-      if (res.ok) {
-        const data = await res.json()
-        setMessages(data.messages || [])
-      }
+      // Refresh messages (incremental)
+      await fetchMessages(false)
     } catch (err) {
       console.error(err)
     } finally {
@@ -375,7 +389,12 @@ export default function ChatRoomPage() {
           ref={listRef}
           className={`flex-1 rounded-[32px] p-6 h-[60vh] overflow-y-auto border space-y-4 mb-4 transition-all duration-300 shadow-md ${chatTheme.listBg}`}
         >
-          {messages.length === 0 ? (
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3">
+              <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm font-semibold opacity-70">Loading messages...</p>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3 opacity-60">
               <Sparkles className="w-12 h-12 text-slate-400 animate-spin-slow" />
               <p className="font-semibold text-lg">No Messages Yet</p>
