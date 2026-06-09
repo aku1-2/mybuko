@@ -11,6 +11,7 @@ export default function ChatsListPage() {
   const isDark = theme === 'dark'
   const router = useRouter()
   const [chats, setChats] = useState<any[]>([])
+  const [chatsLoading, setChatsLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [mutualFollowers, setMutualFollowers] = useState<any[]>([])
   const [contactsLoading, setContactsLoading] = useState(false)
@@ -36,7 +37,11 @@ export default function ChatsListPage() {
           const data = await res.json()
           setChats(data.chats || [])
         }
-      } catch (err) { console.error(err) }
+      } catch (err) { 
+        console.error(err) 
+      } finally {
+        setChatsLoading(false)
+      }
     }
 
     const fetchMutuals = async () => {
@@ -130,7 +135,12 @@ export default function ChatsListPage() {
         </div>
 
         <div className="space-y-3">
-          {chats.length === 0 ? (
+          {chatsLoading ? (
+            <div className={`rounded-3xl p-12 text-center border ${isDark ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-gray-200'} flex flex-col items-center justify-center space-y-4`}>
+              <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-sm opacity-70">Loading conversations...</p>
+            </div>
+          ) : chats.length === 0 ? (
             <div className="space-y-6">
               <div className={`rounded-3xl p-8 text-center border ${isDark ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-gray-200'}`}>
                 <p className={`text-lg font-bold mb-2 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
