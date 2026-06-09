@@ -88,3 +88,45 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Failed to fetch user profile' }, { status: 500 })
   }
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: userId } = await params
+    if (!userId) return NextResponse.json({ error: 'User ID required' }, { status: 400 })
+
+    // Verify token and ownership
+    const authHeader = req.headers.get('authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const verified = verifyToken(token)
+    if (!verified || verified.userId !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { bio, profilePicture } = await req.json()
+
+    // Build update object
+    const updateData: any = {}
+    if (bio !== undefined) updateData.bio = bio
+    if (profilePicture !== undefined) updateData.profileImage = profilePicture
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        bio: true,
+        profileImage: true,
+        createdAt: true,
+      }
+    })
+
+    return NextResponse.json({ user: updatedUser })
+  } catch (err) {
+    console.error('Update profile details error:', err)
+    return NextResponse.json({ error: 'Failed to update user profile' }, { status: 500 })
+  }
+}
