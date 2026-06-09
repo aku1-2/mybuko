@@ -32,14 +32,19 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ chat: existing })
 
     // create chat and participants
-    const chat = await prisma.chat.create({ data: {} })
-    await prisma.chatParticipant.createMany({ data: [
-      { chatId: chat.id, userId: verified.userId },
-      { chatId: chat.id, userId: participantId }
-    ]})
+    const chat = await prisma.chat.create({
+      data: {
+        participants: {
+          create: [
+            { userId: verified.userId },
+            { userId: participantId }
+          ]
+        }
+      },
+      include: { participants: { include: { user: true } }, messages: true }
+    })
 
-    const chatWithParts = await prisma.chat.findUnique({ where: { id: chat.id }, include: { participants: { include: { user: true } }, messages: true } })
-    return NextResponse.json({ chat: chatWithParts })
+    return NextResponse.json({ chat })
   } catch (err) {
     console.error('Create chat error', err)
     return NextResponse.json({ error: 'Failed to create chat' }, { status: 500 })

@@ -28,6 +28,27 @@ export default function GoalDetailPage() {
 
   const fetchGoal = async () => {
     try {
+      if (String(params.id).startsWith('local-')) {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const foundGoal = joined.find(g => String(g.id) === String(params.id))
+          if (foundGoal) {
+            const parsedGoal = {
+              milestones: [],
+              notes: [],
+              ...foundGoal
+            }
+            setGoal(parsedGoal)
+            setEditData(parsedGoal)
+            setIsLoading(false)
+            return
+          }
+        }
+        router.push('/dashboard')
+        return
+      }
+
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/goals/${params.id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -50,6 +71,34 @@ export default function GoalDetailPage() {
   const addMilestone = async () => {
     if (!newMilestone.trim()) return
 
+    if (String(params.id).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(params.id)) {
+              const milestones = g.milestones || []
+              const newM = {
+                id: `milestone-${Date.now()}`,
+                title: newMilestone.trim(),
+                completed: false,
+                createdAt: new Date().toISOString()
+              }
+              return { ...g, milestones: [...milestones, newM] }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          setNewMilestone('')
+          fetchGoal()
+        }
+      } catch (err) {
+        console.error('Error adding local milestone:', err)
+      }
+      return
+    }
+
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/goals/${params.id}/milestones`, {
@@ -71,6 +120,32 @@ export default function GoalDetailPage() {
   }
 
   const toggleMilestone = async (milestoneId: string, completed: boolean) => {
+    if (String(params.id).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(params.id)) {
+              const milestones = (g.milestones || []).map((m: any) => {
+                if (String(m.id) === String(milestoneId)) {
+                  return { ...m, completed: !completed }
+                }
+                return m
+              })
+              return { ...g, milestones }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          fetchGoal()
+        }
+      } catch (err) {
+        console.error('Error toggling local milestone:', err)
+      }
+      return
+    }
+
     try {
       const token = localStorage.getItem('token')
       await fetch(`/api/goals/${params.id}/milestones/${milestoneId}`, {
@@ -88,6 +163,27 @@ export default function GoalDetailPage() {
   }
 
   const deleteMilestone = async (milestoneId: string) => {
+    if (String(params.id).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(params.id)) {
+              const milestones = (g.milestones || []).filter((m: any) => String(m.id) !== String(milestoneId))
+              return { ...g, milestones }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          fetchGoal()
+        }
+      } catch (err) {
+        console.error('Error deleting local milestone:', err)
+      }
+      return
+    }
+
     try {
       const token = localStorage.getItem('token')
       await fetch(`/api/goals/${params.id}/milestones/${milestoneId}`, {
@@ -102,6 +198,33 @@ export default function GoalDetailPage() {
 
   const addNote = async () => {
     if (!newNote.trim()) return
+
+    if (String(params.id).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(params.id)) {
+              const notes = g.notes || []
+              const newN = {
+                id: `note-${Date.now()}`,
+                content: newNote.trim(),
+                createdAt: new Date().toISOString()
+              }
+              return { ...g, notes: [...notes, newN] }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          setNewNote('')
+          fetchGoal()
+        }
+      } catch (err) {
+        console.error('Error adding local note:', err)
+      }
+      return
+    }
 
     try {
       const token = localStorage.getItem('token')
@@ -124,6 +247,27 @@ export default function GoalDetailPage() {
   }
 
   const deleteNote = async (noteId: string) => {
+    if (String(params.id).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(params.id)) {
+              const notes = (g.notes || []).filter((n: any) => String(n.id) !== String(noteId))
+              return { ...g, notes }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          fetchGoal()
+        }
+      } catch (err) {
+        console.error('Error deleting local note:', err)
+      }
+      return
+    }
+
     try {
       const token = localStorage.getItem('token')
       await fetch(`/api/goals/${params.id}/notes/${noteId}`, {
@@ -137,6 +281,38 @@ export default function GoalDetailPage() {
   }
 
   const updateGoal = async () => {
+    if (String(params.id).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(params.id)) {
+              return {
+                ...g,
+                title: editData.title,
+                description: editData.description,
+                status: editData.status,
+                progress: editData.progress,
+                estimatedCost: editData.estimatedCost,
+                amountSaved: editData.amountSaved,
+                priority: editData.priority,
+                category: editData.category,
+                targetDate: editData.targetDate,
+              }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          setIsEditing(false)
+          fetchGoal()
+        }
+      } catch (err) {
+        console.error('Error updating local goal:', err)
+      }
+      return
+    }
+
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/goals/${params.id}`, {
@@ -159,6 +335,21 @@ export default function GoalDetailPage() {
 
   const deleteGoal = async () => {
     if (!window.confirm('Delete this goal? This cannot be undone!')) return
+
+    if (String(params.id).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const filtered = joined.filter(g => String(g.id) !== String(params.id))
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(filtered))
+          router.push('/dashboard')
+        }
+      } catch (err) {
+        console.error('Error deleting local goal:', err)
+      }
+      return
+    }
 
     try {
       const token = localStorage.getItem('token')

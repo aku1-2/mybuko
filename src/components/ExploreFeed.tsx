@@ -7,14 +7,14 @@ import { useRouter } from 'next/navigation'
 import { ImagePlus, Heart, Send, Camera, TrendingUp, Trophy, Users, MessageSquare } from 'lucide-react'
 
 type Comment = {
-  id: number
+  id: number | string
   author: string
   text: string
   date: string
 }
 
 type Post = {
-  id: number
+  id: string | number
   author: string
   authorEmail?: string
   role: string
@@ -59,64 +59,7 @@ const TRENDING_GOALS: TrendingGoal[] = [
   { id: 'read-books', title: 'Read 24 Books', subtitle: 'Set a reading goal and share the best takeaways' },
 ]
 
-const initialPosts: Post[] = [
-  {
-    id: 1,
-    author: 'Ananya',
-    authorEmail: '',
-    role: 'Traveler',
-    text: 'MyBuko helped me finally book the mountain trek I always dreamed of. The planner made everything feel simple and exciting!',
-    image: 'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=900&q=80',
-    date: '2 days ago',
-    likes: 148,
-    liked: false,
-    comments: [
-      { id: 101, author: 'Riya', text: 'This looks amazing! How did you manage the planning?', date: '1 day ago' },
-    ],
-  },
-  {
-    id: 2,
-    author: 'Kabir',
-    authorEmail: '',
-    role: 'Fitness Enthusiast',
-    text: 'Just completed my first 10K run using the weekly habit tracker. The small daily prompts kept me consistent and motivated.',
-    image: 'https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=900&q=80',
-    date: '5 hours ago',
-    likes: 100,
-    liked: false,
-    comments: [
-      { id: 102, author: 'Neha', text: 'Amazing work, Kabir! What was your favorite training tip?', date: '3 hours ago' },
-    ],
-  },
-  {
-    id: 3,
-    author: 'Sonal',
-    authorEmail: '',
-    role: 'Freelance Designer',
-    text: 'I used MyBuko to organize my client workflow and it finally feels like my projects are under control. The deadline reminders are a lifesaver.',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=80',
-    date: '1 day ago',
-    likes: 60,
-    liked: false,
-    comments: [
-      { id: 103, author: 'Arjun', text: 'Love the energy here! How long did it take you to build the routine?', date: '20 hours ago' },
-    ],
-  },
-  {
-    id: 4,
-    author: 'Devika',
-    authorEmail: '',
-    role: 'Product Manager',
-    text: 'Using MyBuko for sprint planning made our team more predictable and reduced last-minute work. Highly recommend the milestone view.',
-    image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=900&q=80',
-    date: '3 days ago',
-    likes: 58,
-    liked: false,
-    comments: [
-      { id: 104, author: 'Sam', text: 'Great to hear — which milestone feature helped most?', date: '2 days ago' },
-    ],
-  },
-]
+const initialPosts: Post[] = []
 
 export default function ExploreFeed() {
   const router = useRouter()
@@ -190,8 +133,8 @@ export default function ExploreFeed() {
   const [goalJoined, setGoalJoined] = useState(false)
   const [joinedTrends, setJoinedTrends] = useState<string[]>([])
   const [activeTrendingGoal, setActiveTrendingGoal] = useState<TrendingGoal>(TRENDING_GOALS[0])
-  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({})
-  const [activeCommentPost, setActiveCommentPost] = useState<number | null>(null)
+  const [commentDrafts, setCommentDrafts] = useState<Record<string | number, string>>({})
+  const [activeCommentPost, setActiveCommentPost] = useState<string | number | null>(null)
   const [following, setFollowing] = useState<Record<string, boolean>>({})
   const [publicGoals, setPublicGoals] = useState<PublicGoal[]>([])
   const [publicGoalsLoading, setPublicGoalsLoading] = useState(true)
@@ -201,26 +144,42 @@ export default function ExploreFeed() {
     setIsMounted(true)
     if (typeof window === 'undefined') return
 
-    // Load posts from local storage on client side after mounting
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored) as Post[]
-        const cleaned = parsed
-          .map((post) => ({
-            ...post,
-            comments: post.comments ?? [],
-            liked: post.liked ?? false,
+    const fetchPosts = async () => {
+      try {
+        const res = await fetch('/api/posts')
+        if (res.ok) {
+          const data = await res.json()
+          const dbPosts = data.posts || []
+          
+          const storedUser = window.localStorage.getItem('user')
+          const parsedUser = storedUser ? JSON.parse(storedUser) : null
+          const currentUserId = parsedUser?.id || ''
+
+          const mappedPosts = dbPosts.map((p: any) => ({
+            id: p.id,
+            author: p.user.name,
+            authorEmail: p.user.email,
+            role: 'Community Member',
+            text: p.text,
+            image: p.image || undefined,
+            date: new Date(p.createdAt).toLocaleDateString(),
+            likes: p.likes?.length || 0,
+            liked: p.likes?.some((l: any) => l.userId === currentUserId) || false,
+            comments: (p.comments || []).map((c: any) => ({
+              id: c.id,
+              author: c.user?.name || 'Community Member',
+              text: c.content,
+              date: new Date(c.createdAt).toLocaleDateString()
+            }))
           }))
-          .filter((post) => {
-            return !(
-              (post.author === 'Meera' && post.text.includes('The experience feed feels so lively')) ||
-              post.author === 'Vikram'
-            )
-          })
-        setPosts(cleaned)
+          setPosts(mappedPosts)
+        }
+      } catch (err) {
+        console.error('Failed to fetch posts:', err)
       }
-    } catch {}
+    }
+
+    fetchPosts()
     setHasLoadedPosts(true)
 
     const fetchPublicGoals = async () => {
@@ -332,16 +291,7 @@ export default function ExploreFeed() {
     } catch {}
   }, [following])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (!hasLoadedPosts) return
-
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(posts))
-    } catch {
-      // ignore local storage write errors
-    }
-  }, [posts, hasLoadedPosts])
+  // Disabled write back to localStorage to keep DB as single source of truth
 
   const canSubmit = isLoggedIn && author.trim().length > 0 && text.trim().length > 0
 
@@ -393,7 +343,7 @@ export default function ExploreFeed() {
     reader.readAsDataURL(file)
   }
 
-  const toggleLike = (id: number) => {
+  const toggleLike = async (id: string | number) => {
     setPosts((currentPosts) =>
       currentPosts.map((post) => {
         if (post.id !== id) return post
@@ -405,6 +355,20 @@ export default function ExploreFeed() {
         }
       })
     )
+
+    try {
+      const token = localStorage.getItem('token')
+      if (token) {
+        await fetch(`/api/posts/${id}/like`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      }
+    } catch (err) {
+      console.error('Failed to toggle like on server:', err)
+    }
   }
 
   const handleShare = async (post: Post) => {
@@ -428,11 +392,38 @@ export default function ExploreFeed() {
     }
   }
 
-  const joinGoal = (goal: { title: string; description?: string; category?: string }) => {
+  const joinGoal = async (goal: { title: string; description?: string; category?: string }) => {
     try {
       const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
       const currentUser = storedUser ? JSON.parse(storedUser) : null
       if (!currentUser) return
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      if (token) {
+        try {
+          const res = await fetch('/api/goals', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              title: goal.title,
+              description: goal.description || '',
+              category: goal.category || 'Personal',
+              targetDate: null,
+              progress: 0,
+              status: 'Not Started'
+            })
+          })
+          if (res.ok) {
+            setGoalJoined(true)
+            return
+          }
+        } catch (err) {
+          console.error('Failed to save joined goal to database, falling back to localStorage:', err)
+        }
+      }
 
       const joinedKey = 'mybuko-joined-goals'
       const existing = typeof window !== 'undefined' ? localStorage.getItem(joinedKey) : null
@@ -468,35 +459,57 @@ export default function ExploreFeed() {
 
   const visiblePosts = posts
 
-  const handleCommentChange = (postId: number, value: string) => {
+  const handleCommentChange = (postId: string | number, value: string) => {
     setCommentDrafts((drafts) => ({ ...drafts, [postId]: value }))
   }
 
-  const handleAddComment = (postId: number) => {
+  const handleAddComment = async (postId: string | number) => {
     const commentText = commentDrafts[postId]?.trim()
     if (!commentText) return
 
-    setPosts((currentPosts) =>
-      currentPosts.map((post) =>
-        post.id !== postId
-          ? post
-          : {
-              ...post,
-              comments: [
-                ...post.comments,
-                {
-                  id: Date.now(),
-                  author: 'You',
-                  text: commentText,
-                  date: 'Just now',
-                },
-              ],
-            }
-      )
-    )
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/auth/login')
+      return
+    }
 
-    setCommentDrafts((drafts) => ({ ...drafts, [postId]: '' }))
-    setActiveCommentPost(postId)
+    try {
+      const res = await fetch(`/api/posts/${postId}/comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content: commentText })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const newComment = {
+          id: data.comment.id,
+          author: data.comment.user.name,
+          text: data.comment.content,
+          date: new Date(data.comment.createdAt).toLocaleDateString()
+        }
+
+        setPosts((currentPosts) =>
+          currentPosts.map((post) =>
+            post.id !== postId
+              ? post
+              : {
+                  ...post,
+                  comments: [...post.comments, newComment]
+                }
+          )
+        )
+        setCommentDrafts((drafts) => ({ ...drafts, [postId]: '' }))
+      } else {
+        alert('Failed to post comment.')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error posting comment.')
+    }
   }
 
   const isTrendingGoalJoined = joinedTrends.includes(activeTrendingGoal.id) || (() => {
@@ -630,7 +643,7 @@ export default function ExploreFeed() {
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 font-semibold text-sm shadow-sm ring-1 ring-emerald-200">
             <Camera className="w-4 h-4" />
-             Preview Stories
+             Stories
           </div>
           <h2 className="mt-5 text-4xl md:text-5xl font-bold text-slate-900 tracking-tight dark:text-white">
             Share your experience with MyBuko
@@ -817,7 +830,7 @@ export default function ExploreFeed() {
             </div>
           ) : publicGoals.length === 0 && !publicGoalsLoading ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-               No public goals are visible yet. Create a goal and mark it public to appear in Preview Community.
+               No public goals are visible yet. Create a goal and mark it public to appear in the Community.
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -872,7 +885,7 @@ export default function ExploreFeed() {
           <div className="grid gap-6 lg:grid-cols-2 items-start">
             {visiblePosts.length === 0 ? (
               <div className="rounded-3xl border border-emerald-200 bg-white p-6 text-center text-slate-700 shadow-xl dark:border-emerald-400/20 dark:bg-slate-950 dark:text-slate-200 lg:col-span-2">
-                 No posts yet. Share your story to appear in the Preview Community feed.
+                 No posts yet. Share your story to appear in the Community feed.
               </div>
             ) : (
               <>

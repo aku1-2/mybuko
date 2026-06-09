@@ -308,14 +308,14 @@ export default function StoriesBar() {
                                 </div>
                             )}
 
-                            {/* Comment input */}
+                             {/* Comment input */}
                             <div className="flex gap-2">
                                 <input
                                     type="text"
                                     value={commentText}
                                     onChange={e => setCommentText(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && handleComment(currentStory.id)}
-                                    placeholder="Add a comment..."
+                                    placeholder="Reply to story via DM..."
                                     className={`flex-1 text-sm rounded-full px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-violet-500 ${isDark ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-100 border-slate-200 text-slate-900 placeholder-slate-400'}`}
                                 />
                                 <button

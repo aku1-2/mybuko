@@ -56,11 +56,26 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-    const user = await getUserFromRequest(req)
+    try {
+        const user = await getUserFromRequest(req)
 
-    if (!user) {
+        if (!user) {
+            return NextResponse.json([])
+        }
+
+        const follows = await prisma.follow.findMany({
+            where: { followerId: user.userId },
+            select: { followingId: true }
+        })
+
+        const followedIds = follows.map(f => f.followingId)
+        const allIds = [user.userId, ...followedIds]
+
         const stories = await prisma.story.findMany({
-            where: { expiresAt: { gt: new Date() } },
+            where: {
+                userId: { in: allIds },
+                expiresAt: { gt: new Date() }
+            },
             include: {
                 user: { select: { id: true, name: true, profileImage: true } },
                 likes: true,
@@ -68,29 +83,10 @@ export async function GET(req: NextRequest) {
             },
             orderBy: { createdAt: 'desc' }
         })
+
         return NextResponse.json(stories)
+    } catch (err) {
+        console.error('Fetch stories error', err)
+        return NextResponse.json({ error: 'Failed to fetch stories' }, { status: 500 })
     }
-
-    const follows = await prisma.follow.findMany({
-        where: { followerId: user.userId },
-        select: { followingId: true }
-    })
-
-    const followedIds = follows.map(f => f.followingId)
-    const allIds = [user.userId, ...followedIds]
-
-    const stories = await prisma.story.findMany({
-        where: {
-            userId: { in: allIds },
-            expiresAt: { gt: new Date() }
-        },
-        include: {
-            user: { select: { id: true, name: true, profileImage: true } },
-            likes: true,
-            comments: { include: { user: { select: { id: true, name: true } } } }
-        },
-        orderBy: { createdAt: 'desc' }
-    })
-
-    return NextResponse.json(stories)
 }

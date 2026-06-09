@@ -299,7 +299,7 @@ export default function ProfilePage() {
               Chats
             </Link>
             <Link
-              href="/explore"
+              href="/dashboard?tab=community"
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-250 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
             >
               <Globe className="w-4 h-4 text-emerald-500" />

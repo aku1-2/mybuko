@@ -59,37 +59,34 @@ export default function CreateExplorePostPage() {
     reader.readAsDataURL(file)
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!isLoggedIn || !author.trim() || !text.trim()) return
 
     setLoading(true)
 
     try {
-      const stored = window.localStorage.getItem('mybuko-explore-posts')
-      const currentPosts = stored ? JSON.parse(stored) : []
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          text: text.trim(),
+          image: image || null
+        })
+      })
 
-      const newPost = {
-        id: Date.now(),
-        author: author.trim() || currentUser?.name || 'Community Member',
-        authorEmail: currentUser?.email,
-        role: 'Community Member',
-        text: text.trim(),
-        image: image || undefined,
-        date: 'Just now',
-        likes: 0,
-        liked: false,
-        comments: [],
+      if (res.ok) {
+        router.push('/explore')
+      } else {
+        alert('Failed to publish story to the database.')
       }
-
-      window.localStorage.setItem(
-        'mybuko-explore-posts',
-        JSON.stringify([newPost, ...currentPosts])
-      )
-
-      router.push('/explore')
     } catch (err) {
       console.error(err)
+      alert('Error connecting to the server.')
     } finally {
       setLoading(false)
     }
