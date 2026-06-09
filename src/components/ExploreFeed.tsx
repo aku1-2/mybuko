@@ -17,6 +17,7 @@ type Post = {
   id: string | number
   author: string
   authorEmail?: string
+  profileImage?: string
   role: string
   text: string
   image?: string
@@ -159,6 +160,7 @@ export default function ExploreFeed() {
             id: p.id,
             author: p.user.name,
             authorEmail: p.user.email,
+            profileImage: p.user.profileImage || undefined,
             role: 'Community Member',
             text: p.text,
             image: p.image || undefined,
@@ -535,13 +537,17 @@ export default function ExploreFeed() {
       <div className="px-6 py-5 sm:px-8 sm:py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4 cursor-pointer" onClick={() => handleUserClick(post.authorEmail)}>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 font-semibold transition hover:scale-105">
-              {post.author
-                .split(' ')
-                .map((word) => word[0])
-                .join('')
-                .slice(0, 2)}
-            </div>
+            {post.profileImage ? (
+              <img src={post.profileImage} alt={post.author} className="h-12 w-12 rounded-full object-cover transition hover:scale-105" />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100 font-semibold transition hover:scale-105">
+                {post.author
+                  .split(' ')
+                  .map((word) => word[0])
+                  .join('')
+                  .slice(0, 2)}
+              </div>
+            )}
             <div className="min-w-0">
               <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100 hover:underline">{post.author}</p>
               <p className="truncate text-sm text-slate-500 dark:text-slate-400">{post.role} • {post.date}</p>

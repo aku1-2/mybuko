@@ -65,6 +65,35 @@ export default function ProfilePage() {
     setBioDraft(parsedUser.bio || '')
     setProfilePicture(parsedUser.profilePicture || '')
 
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`/api/users/${parsedUser.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.user) {
+            const updatedUserData = {
+              ...parsedUser,
+              name: data.user.name,
+              email: data.user.email,
+              bio: data.user.bio || '',
+              profilePicture: data.user.profileImage || '',
+            }
+            localStorage.setItem('user', JSON.stringify(updatedUserData))
+            setUser(updatedUserData)
+            setBio(data.user.bio || '')
+            setBioDraft(data.user.bio || '')
+            setProfilePicture(data.user.profileImage || '')
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user profile:', err)
+      }
+    }
+
     const fetchStats = async () => {
       try {
         const res = await fetch('/api/goals', {
@@ -120,6 +149,7 @@ export default function ProfilePage() {
       }
     }
 
+    fetchProfile()
     fetchStats()
     fetchFollows()
   }, [router])
@@ -160,31 +190,92 @@ export default function ProfilePage() {
     router.push('/')
   }
 
-  const updateUserProfile = (updates: Partial<any>) => {
+  const updateUserProfile = async (updates: Partial<any>) => {
     if (!user) return
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    // Optimistically update frontend local state & storage
     const updatedUser = { ...user, ...updates }
     localStorage.setItem('user', JSON.stringify(updatedUser))
     setUser(updatedUser)
-    if (updates.bio !== undefined) setBio(updates.bio)
+    if (updates.bio !== undefined) {
+      setBio(updates.bio)
+      setBioDraft(updates.bio)
+    }
     if (updates.profilePicture !== undefined) setProfilePicture(updates.profilePicture)
-    setSaveMessage('Profile updated')
-    setTimeout(() => setSaveMessage(''), 3000)
+
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updates)
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to save profile changes to database')
+      }
+
+      const data = await res.json()
+      if (data.user) {
+        const finalUser = {
+          ...updatedUser,
+          name: data.user.name,
+          email: data.user.email,
+          bio: data.user.bio || '',
+          profilePicture: data.user.profileImage || '',
+        }
+        localStorage.setItem('user', JSON.stringify(finalUser))
+        setUser(finalUser)
+        setBio(data.user.bio || '')
+        setBioDraft(data.user.bio || '')
+        setProfilePicture(data.user.profileImage || '')
+      }
+
+      setSaveMessage('Profile saved')
+      setTimeout(() => setSaveMessage(''), 3000)
+    } catch (err) {
+      console.error(err)
+      setSaveMessage('Failed to save to database')
+      setTimeout(() => setSaveMessage(''), 3000)
+    }
   }
 
   const triggerFileInput = () => {
     hiddenFileInputRef.current?.click()
   }
 
-  const handlePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePictureChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const imageData = reader.result as string
-      updateUserProfile({ profilePicture: imageData })
+    setSaveMessage('Uploading picture...')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      })
+      if (!uploadRes.ok) {
+        throw new Error('Upload failed')
+      }
+
+      const data = await uploadRes.json()
+      if (data.url) {
+        await updateUserProfile({ profilePicture: data.url })
+      } else {
+        throw new Error('No url returned')
+      }
+    } catch (err) {
+      console.error(err)
+      setSaveMessage('Upload failed')
+      setTimeout(() => setSaveMessage(''), 3000)
     }
-    reader.readAsDataURL(file)
   }
 
   const startBioEditing = () => {
