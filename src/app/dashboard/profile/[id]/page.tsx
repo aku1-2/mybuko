@@ -220,8 +220,8 @@ export default function UserProfilePage() {
         <div className="max-w-md mx-auto text-center py-16">
           <p className="text-rose-500 font-bold text-xl mb-4">Error Loading Profile</p>
           <p className="mb-6">{error || 'User not found.'}</p>
-          <Link href="/explore" className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700">
-            Back to Explore
+          <Link href="/dashboard?tab=community" className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700">
+            Back to Community
           </Link>
         </div>
       </div>
@@ -241,11 +241,11 @@ export default function UserProfilePage() {
         {/* Back Button */}
         <div className="mb-6">
           <Link
-            href="/explore"
+            href="/dashboard?tab=community"
             className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Explore
+            Back to Community
           </Link>
         </div>
 

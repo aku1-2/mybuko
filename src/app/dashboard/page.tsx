@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Settings, LogOut, User, Search, Filter, ChevronDown, Check, Trash2, Info, CalendarDays, DollarSign, MapPin, Target, Clock, TrendingUp, MessageSquare } from 'lucide-react'
 import { useTheme } from '../theme-provider'
+import StoriesBar from '../../components/StoriesBar'
+import ExploreFeed from '../../components/ExploreFeed'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -20,7 +22,7 @@ export default function DashboardPage() {
   const [openInfoId, setOpenInfoId] = useState<string | null>(null)
   const [filterCategory, setFilterCategory] = useState('All')
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeTab, setActiveTab] = useState<'goals' | 'posts'>('goals')
+  const [activeTab, setActiveTab] = useState<'goals' | 'posts' | 'community'>('goals')
 
   const CATEGORIES = ['All', 'Travel', 'Skills', 'Health', 'Adventure', 'Personal']
 
@@ -49,6 +51,20 @@ export default function DashboardPage() {
       localStorage.removeItem('user')
       setIsLoading(false)
       router.push('/auth/login')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const tab = params.get('tab')
+      if (tab === 'community') {
+        setActiveTab('community')
+      } else if (tab === 'posts') {
+        setActiveTab('posts')
+      } else if (tab === 'goals') {
+        setActiveTab('goals')
+      }
     }
   }, [])
 
@@ -150,8 +166,29 @@ export default function DashboardPage() {
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem('token')
       const progress = newStatus === 'Completed' ? 100 : newStatus === 'In Progress' ? 50 : 0
+
+      if (String(id).startsWith('local-')) {
+        try {
+          const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+          if (joinedRaw) {
+            const joined = JSON.parse(joinedRaw) as any[]
+            const updated = joined.map(g => {
+              if (String(g.id) === String(id)) {
+                return { ...g, status: newStatus, progress }
+              }
+              return g
+            })
+            window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+            setGoals(prevGoals => prevGoals.map(goal => goal.id === id ? { ...goal, status: newStatus, progress } : goal))
+          }
+        } catch (err) {
+          console.error('Failed to update local goal status in localStorage:', err)
+        }
+        return
+      }
+
+      const token = localStorage.getItem('token')
       const res = await fetch(`/api/goals/${id}`, {
         method: 'PATCH',
         headers: {
@@ -182,6 +219,21 @@ export default function DashboardPage() {
 
   const handleDeleteGoal = async (id: string) => {
     try {
+      if (String(id).startsWith('local-')) {
+        try {
+          const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+          if (joinedRaw) {
+            const joined = JSON.parse(joinedRaw) as any[]
+            const filtered = joined.filter(g => String(g.id) !== String(id))
+            window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(filtered))
+            setGoals(prevGoals => prevGoals.filter(goal => goal.id !== id))
+          }
+        } catch (err) {
+          console.error('Failed to delete local goal from localStorage:', err)
+        }
+        return
+      }
+
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/goals/${id}`, {
         method: 'DELETE',
@@ -377,15 +429,24 @@ export default function DashboardPage() {
             >
               My Posts
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('community')}
+              className={`px-5 py-3 rounded-full font-semibold transition ${activeTab === 'community' ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white shadow-md' : isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Community
+            </button>
             <div className={`ml-auto text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
               {activeTab === 'goals'
                 ? `${filteredGoals.length} filtered goals`
-                : `${myPosts.length} shared posts`}
+                : activeTab === 'posts'
+                ? `${myPosts.length} shared posts`
+                : 'Community Feed'}
             </div>
           </div>
         </div>
 
-        {activeTab === 'goals' ? (
+        {activeTab === 'goals' && (
           <>
             {/* Filter */}
             <div className={`rounded-2xl shadow p-4 mb-8 ${isDark ? 'bg-slate-900/70 border border-slate-700' : 'bg-white'}`}>
@@ -542,7 +603,9 @@ export default function DashboardPage() {
           )}
         </div>
       </>
-    ) : (
+    )}
+
+    {activeTab === 'posts' && (
       <div className="space-y-4">
         {myPosts.length === 0 ? (
           <div className={`rounded-2xl shadow p-12 text-center ${isDark ? 'bg-slate-900/70 border border-slate-700' : 'bg-white'}`}>
@@ -569,6 +632,13 @@ export default function DashboardPage() {
             </div>
           ))
         )}
+      </div>
+    )}
+
+    {activeTab === 'community' && (
+      <div className="space-y-6">
+        <StoriesBar />
+        <ExploreFeed />
       </div>
     )}
       </div>

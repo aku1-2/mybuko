@@ -121,7 +121,7 @@ export default function ChatsListPage() {
               Profile
             </Link>
             <Link
-              href="/explore"
+              href="/dashboard?tab=community"
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-250 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
             >
               <Globe className="w-4 h-4 text-emerald-500" />
@@ -185,10 +185,10 @@ export default function ChatsListPage() {
                       No mutual followers yet. Follow back other goal-builders in the community to unlock direct messaging.
                     </p>
                     <Link
-                      href="/explore"
+                      href="/dashboard?tab=community"
                       className="inline-flex px-6 py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-full font-semibold hover:shadow-lg transition-all text-sm"
                     >
-                      Explore Community
+                      Go to Community
                     </Link>
                   </div>
                 )}

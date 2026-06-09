@@ -118,9 +118,9 @@ export default function LandingPage() {
                                                 Inspiration
                                             </a>
                                             <Link
-                                                href="/explore"
+                                                href={isLoggedIn ? "/dashboard?tab=community" : "/explore"}
                                                 onClick={() => setIsMenuOpen(false)}
-                                                className="block px-4 py-2 text-sm text-gray-750 hover:bg-gray-100 transition-colors dark:text-slate-200 dark:hover:bg-slate-800 font-medium"
+                                                className="block px-4 py-2 text-sm text-gray-755 hover:bg-gray-100 transition-colors dark:text-slate-200 dark:hover:bg-slate-800 font-medium"
                                             >
                                                 Community
                                             </Link>
@@ -223,11 +223,11 @@ export default function LandingPage() {
                                     <ChevronRight className="w-5 h-5" />
                                 </Link>
                                 <Link
-                                    href="/explore"
+                                    href={isLoggedIn ? "/dashboard?tab=community" : "/explore"}
                                     className="px-8 py-4 bg-white border-2 border-gray-200 text-gray-900 rounded-xl font-semibold hover:border-gray-300 transition-all flex items-center justify-center gap-2 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
                                 >
                                     <Play className="w-5 h-5" />
-                                    Preview Community
+                                    Community
                                 </Link>
                             </div>
 
@@ -576,7 +576,7 @@ export default function LandingPage() {
                             <ul className="space-y-2 text-sm">
                                 <li><a href="#how-it-works" className="hover:text-white transition-colors">How it Works</a></li>
                                 <li><a href="#inspiration" className="hover:text-white transition-colors">Inspiration</a></li>
-                                <li><Link href="/explore" className="hover:text-white transition-colors">Community</Link></li>
+                                <li><Link href={isLoggedIn ? "/dashboard?tab=community" : "/explore"} className="hover:text-white transition-colors">Community</Link></li>
                             </ul>
                         </div>
 
