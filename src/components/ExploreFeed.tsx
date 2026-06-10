@@ -62,7 +62,7 @@ const TRENDING_GOALS: TrendingGoal[] = [
 
 const initialPosts: Post[] = []
 
-export default function ExploreFeed() {
+export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }) {
   const router = useRouter()
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [author, setAuthor] = useState('')
@@ -466,7 +466,19 @@ export default function ExploreFeed() {
     }
   }
 
-  const visiblePosts = posts
+  const visiblePosts = searchTerm
+    ? posts.filter(post => 
+        post.text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.author.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : posts
+
+  const visibleGoals = searchTerm
+    ? publicGoals.filter(goal => 
+        goal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (goal.description && goal.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : publicGoals
 
   const handleCommentChange = (postId: string | number, value: string) => {
     setCommentDrafts((drafts) => ({ ...drafts, [postId]: value }))
@@ -842,13 +854,13 @@ export default function ExploreFeed() {
             <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-rose-700 dark:border-rose-500/30 dark:bg-rose-950/60 dark:text-rose-100">
               {publicGoalsError}
             </div>
-          ) : publicGoals.length === 0 && !publicGoalsLoading ? (
+          ) : visibleGoals.length === 0 && !publicGoalsLoading ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-               No public goals are visible yet. Create a goal and mark it public to appear in the Community.
+               {searchTerm ? 'No public goals match your search query.' : 'No public goals are visible yet. Create a goal and mark it public to appear in the Community.'}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              {publicGoals.map((goal) => (
+              {visibleGoals.map((goal) => (
                 <article
                   key={goal.id}
                   className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 dark:border-slate-700 dark:bg-slate-900"
