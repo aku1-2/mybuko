@@ -375,7 +375,7 @@ export default function ProfilePage() {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/dashboard"
-            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
@@ -384,14 +384,14 @@ export default function ProfilePage() {
           <div className="flex items-center gap-2">
             <Link
               href="/dashboard/chats"
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-250 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
             >
               <MessageSquare className="w-4 h-4 text-blue-500" />
               Chats
             </Link>
             <Link
               href="/dashboard?tab=community"
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-250 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition hover:bg-opacity-80 ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-gray-700 border-gray-200'}`}
             >
               <Globe className="w-4 h-4 text-emerald-500" />
               Community
@@ -624,7 +624,7 @@ export default function ProfilePage() {
       {/* Followers / Following Modals */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className={`w-full max-w-md rounded-[32px] overflow-hidden border shadow-2xl transition-all ${isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-gray-150 text-gray-900'}`}>
+          <div className={`w-full max-w-md rounded-[32px] overflow-hidden border shadow-2xl transition-all ${isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-gray-200 text-gray-900'}`}>
             
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-opacity-50 dark:border-slate-800 border-gray-200">
@@ -652,7 +652,7 @@ export default function ProfilePage() {
                       setShowModal(null)
                       router.push(`/dashboard/profile/${usr.id}`)
                     }}
-                    className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${isDark ? 'bg-slate-900/60 border-slate-800 hover:bg-slate-850' : 'bg-gray-50 border-gray-100 hover:bg-gray-100/60'}`}
+                    className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${isDark ? 'bg-slate-900/60 border-slate-800 hover:bg-slate-800' : 'bg-gray-50 border-gray-100 hover:bg-gray-100/60'}`}
                   >
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
@@ -660,7 +660,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold truncate text-sm">{usr.name}</p>
-                        <p className="text-xs text-slate-450 truncate">{usr.email}</p>
+                        <p className="text-xs text-slate-400 truncate">{usr.email}</p>
                       </div>
                     </div>
 
@@ -671,7 +671,7 @@ export default function ProfilePage() {
                           <button
                             type="button"
                             onClick={() => handleFollowToggleInModal(usr.id, isFollowingUsr)}
-                            className={`px-4 py-1.5 rounded-full font-semibold text-xs transition ${isFollowingUsr ? (isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-650' : 'bg-gray-150 text-gray-700 hover:bg-gray-200') : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                            className={`px-4 py-1.5 rounded-full font-semibold text-xs transition ${isFollowingUsr ? (isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300') : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                           >
                             {isFollowingUsr ? 'Following' : 'Follow'}
                           </button>

@@ -68,6 +68,7 @@ export default function ExploreFeed() {
   const [author, setAuthor] = useState('')
   const [isMounted, setIsMounted] = useState(false)
   const [hasLoadedPosts, setHasLoadedPosts] = useState(false)
+  const [isInitiatingChat, setIsInitiatingChat] = useState(false)
 
   const handleUserClick = async (email: string | undefined) => {
     if (!email) {
@@ -86,10 +87,12 @@ export default function ExploreFeed() {
   }
 
   const handleMessageClick = async (email: string | undefined) => {
-    if (!email) return
+    if (!email || isInitiatingChat) return
+    setIsInitiatingChat(true)
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/auth/login')
+      setIsInitiatingChat(false)
       return
     }
 
@@ -97,6 +100,7 @@ export default function ExploreFeed() {
       const userRes = await fetch(`/api/users/by-email?email=${encodeURIComponent(email)}`)
       if (!userRes.ok) {
         alert('Could not find user details.')
+        setIsInitiatingChat(false)
         return
       }
       const userData = await userRes.json()
@@ -115,12 +119,15 @@ export default function ExploreFeed() {
         router.push(`/dashboard/chats/${chatData.chat.id}`)
       } else if (chatRes.status === 403) {
         alert('Chatting is only allowed between mutual followers. Make sure you follow each other!')
+        setIsInitiatingChat(false)
       } else {
         alert('Unable to start a conversation with this user.')
+        setIsInitiatingChat(false)
       }
     } catch (err) {
       console.error(err)
       alert('Error initiating chat room.')
+      setIsInitiatingChat(false)
     }
   }
   const [currentUserName, setCurrentUserName] = useState('')
@@ -557,8 +564,9 @@ export default function ExploreFeed() {
             {post.authorEmail && post.authorEmail !== currentUserEmail && (
               <button
                 type="button"
+                disabled={isInitiatingChat}
                 onClick={() => handleMessageClick(post.authorEmail)}
-                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 hover:border-slate-350 hover:bg-slate-50 transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
+                className={`inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 ${isInitiatingChat ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Send Message"
               >
                 <MessageSquare className="w-4 h-4 text-blue-500" />
@@ -587,7 +595,7 @@ export default function ExploreFeed() {
           <button
             type="button"
             onClick={() => toggleLike(post.id)}
-            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${post.liked ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 text-slate-700 hover:border-slate-350 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800'}`}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${post.liked ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800'}`}
           >
             <Heart className={`w-4 h-4 ${post.liked ? 'text-white' : 'text-blue-600'}`} />
             {post.likes} {post.likes === 1 ? 'Like' : 'Likes'}
@@ -675,7 +683,7 @@ export default function ExploreFeed() {
                   </svg>
                 </div>
                 <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Community feed is locked</h3>
-                <p className="text-slate-650 dark:text-slate-300 leading-relaxed text-sm">
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
                   Sign in or create an account to view and participate in community stories, see trending goals, follow peers, and share your own experiences.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -699,7 +707,7 @@ export default function ExploreFeed() {
           <div className={!isLoggedIn ? "filter blur-md select-none pointer-events-none opacity-40 transition-all duration-305" : ""}>
             <div className="grid lg:grid-cols-2 gap-6 items-start">
           <div className="flex flex-col gap-4">
-            <div className="rounded-[32px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-teal-50/50 p-8 shadow-[0_20px_60px_-35px_rgba(16,185,129,0.35)] dark:border-emerald-450/20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950/80">
+            <div className="rounded-[32px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-teal-50/50 p-8 shadow-[0_20px_60px_-35px_rgba(16,185,129,0.35)] dark:border-emerald-500/20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950/80">
               <div className="flex items-center justify-between gap-4 mb-6">
                 <div>
                   <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Share your story</h3>
@@ -711,7 +719,7 @@ export default function ExploreFeed() {
               </div>
 
               <div className="space-y-4">
-                <p className="text-sm text-slate-600 dark:text-slate-350 leading-relaxed">
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                   Every story shared inspires fellow goal-builders in the community to stay consistent, build habits, and complete their bucket lists.
                 </p>
                 <div className="pt-2">

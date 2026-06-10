@@ -94,7 +94,7 @@ export default function ExplorePage() {
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className={`p-2 rounded-full transition-colors relative ${isDark ? 'bg-slate-900 hover:bg-slate-800 text-slate-250' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                  className={`p-2 rounded-full transition-colors relative ${isDark ? 'bg-slate-900 hover:bg-slate-800 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                   aria-label="Notifications"
                 >
                   <Bell className="w-5 h-5" />
@@ -107,7 +107,7 @@ export default function ExplorePage() {
 
                 {showNotifications && (
                   <div className={`absolute right-0 mt-3 w-80 rounded-2xl shadow-xl py-3 border z-50 ${isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-gray-200 text-gray-900'}`}>
-                    <div className="px-4 pb-2 border-b flex justify-between items-center dark:border-slate-850 border-gray-150">
+                    <div className="px-4 pb-2 border-b flex justify-between items-center dark:border-slate-800 border-gray-200">
                       <span className="font-bold text-sm">Notifications</span>
                       {unreadCount > 0 && (
                         <button

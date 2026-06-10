@@ -891,7 +891,7 @@ export default function DashboardPage() {
                                   >
                                     {m.completed && <Check className="w-3 h-3 text-white" />}
                                   </button>
-                                  <span className={`flex-1 truncate ${m.completed ? 'line-through text-slate-500' : isDark ? 'text-slate-300' : 'text-gray-750'}`}>
+                                  <span className={`flex-1 truncate ${m.completed ? 'line-through text-slate-500' : isDark ? 'text-slate-300' : 'text-gray-700'}`}>
                                     {m.title}
                                   </span>
                                   <button
@@ -920,7 +920,7 @@ export default function DashboardPage() {
                                 }
                               }}
                               placeholder="New milestone..."
-                              className={`flex-1 px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-500 ${isDark ? 'bg-slate-805 border-slate-700 text-slate-200' : 'bg-white border-gray-300 text-gray-900'}`}
+                              className={`flex-1 px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-500 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-gray-300 text-gray-900'}`}
                               id={`milestone-input-${goal.id}`}
                             />
                             <button
@@ -980,7 +980,7 @@ export default function DashboardPage() {
                                 }
                               }}
                               placeholder="Add a note..."
-                              className={`flex-1 px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-500 ${isDark ? 'bg-slate-805 border-slate-700 text-slate-200' : 'bg-white border-gray-300 text-gray-900'}`}
+                              className={`flex-1 px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-500 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-gray-300 text-gray-900'}`}
                               id={`note-input-${goal.id}`}
                             />
                             <button

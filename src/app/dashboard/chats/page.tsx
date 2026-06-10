@@ -16,6 +16,7 @@ export default function ChatsListPage() {
   const [mutualFollowers, setMutualFollowers] = useState<any[]>([])
   const [contactsLoading, setContactsLoading] = useState(false)
   const [initiateError, setInitiateError] = useState('')
+  const [initiating, setInitiating] = useState(false)
 
   useEffect(() => {
     const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
@@ -69,9 +70,14 @@ export default function ChatsListPage() {
   }, [router])
 
   const handleStartChat = async (participantId: string) => {
+    if (initiating) return
+    setInitiating(true)
     setInitiateError('')
     const token = localStorage.getItem('token')
-    if (!token) return
+    if (!token) {
+      setInitiating(false)
+      return
+    }
 
     try {
       const res = await fetch('/api/chats', {
@@ -89,10 +95,12 @@ export default function ChatsListPage() {
       } else {
         const errData = await res.json()
         setInitiateError(errData.error || 'Unable to start chat room.')
+        setInitiating(false)
       }
     } catch (err) {
       console.error(err)
       setInitiateError('Network error starting chat.')
+      setInitiating(false)
     }
   }
 
@@ -165,8 +173,9 @@ export default function ChatsListPage() {
                       {mutualFollowers.map((contact) => (
                         <button
                           key={contact.id}
+                          disabled={initiating}
                           onClick={() => handleStartChat(contact.id)}
-                          className={`flex items-center gap-3 w-full p-4 rounded-2xl border transition text-left hover:scale-[1.02] ${isDark ? 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-slate-200' : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-800'}`}
+                          className={`flex items-center gap-3 w-full p-4 rounded-2xl border transition text-left hover:scale-[1.02] ${initiating ? 'opacity-50 cursor-not-allowed' : ''} ${isDark ? 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-slate-200' : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-800'}`}
                         >
                           <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                             {contact.name.charAt(0).toUpperCase()}

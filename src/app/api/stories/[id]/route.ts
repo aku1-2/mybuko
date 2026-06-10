@@ -73,16 +73,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         }
 
         // Find or create direct chat between commenter and story owner
-        let chat = await prisma.chat.findFirst({
+        const existingChats = await prisma.chat.findMany({
             where: {
                 AND: [
                     { participants: { some: { userId: user.userId } } },
                     { participants: { some: { userId: story.userId } } }
                 ]
-            }
+            },
+            include: { messages: true }
         })
 
-        if (!chat) {
+        let chat
+        if (existingChats.length > 0) {
+            const withMessages = existingChats.filter(c => c.messages.length > 0)
+            chat = withMessages.length > 0 ? withMessages[0] : existingChats[0]
+            
+            const toDelete = existingChats.filter(c => c.id !== chat.id)
+            if (toDelete.length > 0) {
+                // Move messages to the kept chat before deleting
+                for (const extraChat of toDelete) {
+                    if (extraChat.messages.length > 0) {
+                        await prisma.message.updateMany({
+                            where: { chatId: extraChat.id },
+                            data: { chatId: chat.id }
+                        })
+                    }
+                }
+                await prisma.chat.deleteMany({
+                    where: { id: { in: toDelete.map(c => c.id) } }
+                })
+            }
+        } else {
             chat = await prisma.chat.create({
                 data: {
                     participants: {

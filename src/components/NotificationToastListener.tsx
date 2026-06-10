@@ -225,7 +225,7 @@ export default function NotificationToastListener() {
               
               <button
                 onClick={() => handleDismiss(notif.id)}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors"
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 aria-label="Dismiss"
               >
                 <X className="h-4 w-4" />

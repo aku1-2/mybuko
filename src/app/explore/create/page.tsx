@@ -145,7 +145,7 @@ export default function CreateExplorePostPage() {
         <div className="grid lg:grid-cols-2 gap-10 items-start">
           
           {/* Creator Form */}
-          <div className="rounded-[32px] border border-emerald-250 bg-white p-8 shadow-xl dark:border-emerald-500/10 dark:bg-slate-900">
+          <div className="rounded-[32px] border border-emerald-200 bg-white p-8 shadow-xl dark:border-emerald-500/10 dark:bg-slate-900">
             <div className="mb-6">
               <h2 className="text-2xl font-bold">Write a story</h2>
               <p className="text-sm text-slate-500 mt-1">Tell the community about your goals, habits, and progress.</p>
@@ -172,7 +172,7 @@ export default function CreateExplorePostPage() {
                   Add a photo
                 </label>
                 <div className="flex flex-wrap items-center gap-4">
-                  <label className="cursor-pointer inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-850">
+                  <label className="cursor-pointer inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-800">
                     <ImagePlus className="w-5 h-5 text-emerald-600" />
                     <span>Choose file</span>
                     <input
@@ -182,7 +182,7 @@ export default function CreateExplorePostPage() {
                       className="sr-only"
                     />
                   </label>
-                  <span className="text-xs text-slate-550 truncate max-w-xs">{imageName || "No file selected"}</span>
+                  <span className="text-xs text-slate-500 truncate max-w-xs">{imageName || "No file selected"}</span>
                 </div>
               </div>
 
@@ -204,7 +204,7 @@ export default function CreateExplorePostPage() {
                 <button
                   type="submit"
                   disabled={loading || !author.trim() || !text.trim()}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-emerald-550/20 transition hover:bg-emerald-700 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-700 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
                   {loading ? "Posting Story..." : "Publish Story"}
@@ -235,7 +235,7 @@ export default function CreateExplorePostPage() {
                 </div>
                 
                 <div className="mt-4">
-                  <p className="text-slate-750 leading-relaxed dark:text-slate-300 whitespace-pre-wrap">
+                  <p className="text-slate-700 leading-relaxed dark:text-slate-300 whitespace-pre-wrap">
                     {text || "Your experience content will show up here as you type..."}
                   </p>
                 </div>
@@ -247,7 +247,7 @@ export default function CreateExplorePostPage() {
                 </div>
               ) : (
                 <div className="h-44 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 flex items-center justify-center border-t border-slate-100 dark:border-slate-800">
-                  <p className="text-xs text-slate-450 italic">No image uploaded</p>
+                  <p className="text-xs text-slate-400 italic">No image uploaded</p>
                 </div>
               )}
             </article>

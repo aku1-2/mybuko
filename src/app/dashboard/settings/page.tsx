@@ -222,7 +222,7 @@ export default function SettingsPage() {
                 <div key={i} className="flex items-center justify-between p-4 border border-gray-200 dark:border-slate-800 rounded-xl">
                   <div>
                     <p className="font-semibold">{notif.label}</p>
-                    <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-650'}`}>{notif.desc}</p>
+                    <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>{notif.desc}</p>
                   </div>
                   <button className="relative w-14 h-8 bg-blue-600 rounded-full">
                     <div className="absolute top-1 right-1 w-6 h-6 bg-white rounded-full"></div>
@@ -237,9 +237,9 @@ export default function SettingsPage() {
                 </h3>
 
                 {loadingNotifs ? (
-                  <p className="text-sm text-slate-455 animate-pulse py-4">Loading notifications...</p>
+                  <p className="text-sm text-slate-400 animate-pulse py-4">Loading notifications...</p>
                 ) : notifications.length === 0 ? (
-                  <p className="text-sm text-slate-455 py-4">No recent notifications.</p>
+                  <p className="text-sm text-slate-400 py-4">No recent notifications.</p>
                 ) : (
                   <div className="space-y-3">
                     {notifications.map((n) => {
@@ -257,7 +257,7 @@ export default function SettingsPage() {
                         >
                           <div>
                             <p className="text-sm font-medium leading-relaxed">{n.message}</p>
-                            <p className="text-[10px] text-slate-455 mt-1">
+                            <p className="text-[10px] text-slate-400 mt-1">
                               {new Date(n.createdAt).toLocaleString()}
                             </p>
                           </div>
@@ -273,7 +273,7 @@ export default function SettingsPage() {
                                   Follow Back
                                 </button>
                               ) : (
-                                <span className="inline-flex items-center gap-1 rounded-lg bg-slate-105 dark:bg-slate-850 px-3.5 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                                   <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                                   Following
                                 </span>

@@ -42,6 +42,7 @@ export default function UserProfilePage() {
 
   // Chat/DM alert state
   const [dmError, setDmError] = useState('')
+  const [isInitiatingChat, setIsInitiatingChat] = useState(false)
 
   // Feed posts for this user
   const [activityPosts, setActivityPosts] = useState<ActivityPost[]>([])
@@ -177,9 +178,14 @@ export default function UserProfilePage() {
   }
 
   const handleStartChat = async () => {
+    if (isInitiatingChat) return
+    setIsInitiatingChat(true)
     setDmError('')
     const token = localStorage.getItem('token')
-    if (!token) return
+    if (!token) {
+      setIsInitiatingChat(false)
+      return
+    }
 
     try {
       const res = await fetch('/api/chats', {
@@ -196,13 +202,16 @@ export default function UserProfilePage() {
         router.push(`/dashboard/chats/${data.chat.id}`)
       } else if (res.status === 403) {
         setDmError('Chat is only allowed between mutual followers. Make sure you follow each other!')
+        setIsInitiatingChat(false)
       } else {
         const errData = await res.json()
         setDmError(errData.error || 'Unable to start chat room.')
+        setIsInitiatingChat(false)
       }
     } catch (err) {
       console.error(err)
       setDmError('Network error starting chat.')
+      setIsInitiatingChat(false)
     }
   }
 
@@ -269,7 +278,7 @@ export default function UserProfilePage() {
 
               {/* Bio */}
               <div className="mt-5 w-full">
-                <p className={`text-sm italic leading-relaxed px-4 py-3 rounded-2xl border ${isDark ? 'bg-slate-900/50 border-slate-700 text-slate-300' : 'bg-gray-50 border-gray-150 text-gray-600'}`}>
+                <p className={`text-sm italic leading-relaxed px-4 py-3 rounded-2xl border ${isDark ? 'bg-slate-900/50 border-slate-700 text-slate-300' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
                   {profileUser.bio || "No biography provided yet."}
                 </p>
               </div>
@@ -286,7 +295,7 @@ export default function UserProfilePage() {
                 <button
                   type="button"
                   onClick={handleFollowToggle}
-                  className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold transition ${profileUser.isFollowing ? 'border bg-slate-200 text-gray-900 hover:bg-slate-350' : 'bg-gradient-to-r from-blue-600 to-teal-600 text-white hover:opacity-95'}`}
+                  className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold transition ${profileUser.isFollowing ? 'border bg-slate-200 text-gray-900 hover:bg-slate-300' : 'bg-gradient-to-r from-blue-600 to-teal-600 text-white hover:opacity-95'}`}
                 >
                   {profileUser.isFollowing ? (
                     <>
@@ -302,8 +311,9 @@ export default function UserProfilePage() {
                 </button>
                 <button
                   type="button"
+                  disabled={isInitiatingChat}
                   onClick={handleStartChat}
-                  className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 border font-semibold transition ${isDark ? 'bg-slate-750 text-slate-100 border-slate-700 hover:bg-slate-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                  className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 border font-semibold transition ${isInitiatingChat ? 'opacity-50 cursor-not-allowed' : ''} ${isDark ? 'bg-slate-800 text-slate-100 border-slate-700 hover:bg-slate-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
                 >
                   <MessageSquare className="w-4 h-4" />
                   Message
@@ -317,19 +327,19 @@ export default function UserProfilePage() {
             
             {/* Stats Metrics */}
             <div className="grid md:grid-cols-4 gap-4">
-              <div className={`${isDark ? 'bg-slate-800/60 border border-slate-700' : 'bg-white border border-gray-150'} rounded-2xl shadow p-6`}>
+              <div className={`${isDark ? 'bg-slate-800/60 border border-slate-700' : 'bg-white border border-gray-200'} rounded-2xl shadow p-6`}>
                 <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mb-1`}>Total Goals</p>
                 <p className={`text-3xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{stats.totalGoals}</p>
               </div>
-              <div className={`${isDark ? 'bg-slate-800/60 border border-slate-700' : 'bg-white border border-gray-150'} rounded-2xl shadow p-6`}>
+              <div className={`${isDark ? 'bg-slate-800/60 border border-slate-700' : 'bg-white border border-gray-200'} rounded-2xl shadow p-6`}>
                 <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mb-1`}>Completed</p>
                 <p className="text-3xl font-bold text-green-600">{stats.completedGoals}</p>
               </div>
-              <div className={`${isDark ? 'bg-slate-800/60 border border-slate-700' : 'bg-white border border-gray-150'} rounded-2xl shadow p-6`}>
+              <div className={`${isDark ? 'bg-slate-800/60 border border-slate-700' : 'bg-white border border-gray-200'} rounded-2xl shadow p-6`}>
                 <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mb-1`}>In Progress</p>
                 <p className="text-3xl font-bold text-orange-600">{stats.inProgressGoals}</p>
               </div>
-              <div className={`${isDark ? 'bg-slate-800/60 border border-slate-700' : 'bg-white border border-gray-150'} rounded-2xl shadow p-6`}>
+              <div className={`${isDark ? 'bg-slate-800/60 border border-slate-700' : 'bg-white border border-gray-200'} rounded-2xl shadow p-6`}>
                 <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mb-1`}>Completion</p>
                 <p className="text-3xl font-bold text-purple-600">{stats.completionRate}%</p>
               </div>
@@ -371,23 +381,23 @@ export default function UserProfilePage() {
               </div>
 
               <div className="grid md:grid-cols-3 gap-4">
-                <div className={`rounded-3xl border p-5 transition ${goalSetterUnlocked ? (isDark ? 'bg-slate-800 border-slate-750' : 'bg-blue-50 border-blue-200') : (isDark ? 'bg-slate-900 border-slate-750 opacity-60' : 'bg-gray-50 border-gray-200 opacity-60')}`}>
+                <div className={`rounded-3xl border p-5 transition ${goalSetterUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-blue-50 border-blue-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-200 opacity-60')}`}>
                   <div className="flex items-center justify-between gap-2">
                     <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>🎯 Goal Setter</p>
                     {goalSetterUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">Created at least one goal</p>
+                  <p className="text-xs text-slate-550 mt-2">Created at least one goal</p>
                 </div>
 
-                <div className={`rounded-3xl border p-5 transition ${firstVictoryUnlocked ? (isDark ? 'bg-slate-800 border-slate-750' : 'bg-green-50 border-green-200') : (isDark ? 'bg-slate-900 border-slate-750 opacity-60' : 'bg-gray-50 border-gray-200 opacity-60')}`}>
+                <div className={`rounded-3xl border p-5 transition ${firstVictoryUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-green-50 border-green-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-200 opacity-60')}`}>
                   <div className="flex items-center justify-between gap-2">
                     <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>✅ First Victory</p>
                     {firstVictoryUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">Completed at least one goal</p>
+                  <p className="text-xs text-slate-550 mt-2">Completed at least one goal</p>
                 </div>
 
-                <div className={`rounded-3xl border p-5 transition ${powerUserUnlocked ? (isDark ? 'bg-slate-800 border-slate-750' : 'bg-purple-50 border-purple-200') : (isDark ? 'bg-slate-900 border-slate-750 opacity-60' : 'bg-gray-50 border-gray-200 opacity-60')}`}>
+                <div className={`rounded-3xl border p-5 transition ${powerUserUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-purple-50 border-purple-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-200 opacity-60')}`}>
                   <div className="flex items-center justify-between gap-2">
                     <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>🏆 Power User</p>
                     {powerUserUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
@@ -407,10 +417,10 @@ export default function UserProfilePage() {
               {activityPosts.length > 0 ? (
                 <div className="space-y-4">
                   {activityPosts.map((post) => (
-                    <div key={post.id} className={`${isDark ? 'bg-slate-900 border-slate-750' : 'bg-gray-50 border-gray-200'} rounded-2xl border p-5`}>
+                    <div key={post.id} className={`${isDark ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'} rounded-2xl border p-5`}>
                       <div className="flex items-center justify-between gap-4 mb-3">
                         <p className={`font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{post.author}</p>
-                        <span className="text-sm text-slate-550">{post.date}</span>
+                        <span className="text-sm text-slate-500">{post.date}</span>
                       </div>
                       <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-700'} mb-4`}>{post.text}</p>
                       <div className="flex flex-wrap gap-3 text-sm font-medium text-slate-600 dark:text-slate-300">
@@ -421,7 +431,7 @@ export default function UserProfilePage() {
                   ))}
                 </div>
               ) : (
-                <p className={`${isDark ? 'text-slate-350' : 'text-gray-600'} text-sm`}>
+                <p className={`${isDark ? 'text-slate-400' : 'text-gray-600'} text-sm`}>
                   No shared community posts by this user yet.
                 </p>
               )}
