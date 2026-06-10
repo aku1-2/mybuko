@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import { User, Award, CheckCircle, Pencil, Check, X, ArrowLeft, MessageSquare, Globe } from 'lucide-react'
+import { User, Award, CheckCircle, Pencil, Check, X, ArrowLeft, MessageSquare, Globe, Flame, Activity, Calendar, Sun, Moon } from 'lucide-react'
 import { useTheme } from '../../theme-provider'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -24,9 +24,11 @@ type ExploreActivityPost = {
 }
 
 export default function ProfilePage() {
-  const { theme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [goals, setGoals] = useState<any[]>([])
+  const [streak, setStreak] = useState<number>(7)
   const [stats, setStats] = useState({
     totalGoals: 0,
     completedGoals: 0,
@@ -114,10 +116,24 @@ export default function ProfilePage() {
           return
         }
 
-        const goals = await res.json()
-        const totalGoals = goals.length
-        const completedGoals = goals.filter((goal: any) => goal.status === 'Completed').length
-        const inProgressGoals = goals.filter((goal: any) => goal.status === 'In Progress').length
+        const goalsData = await res.json()
+        let merged = goalsData
+        try {
+          const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+          if (joinedRaw) {
+            const joined = JSON.parse(joinedRaw) as any[]
+            const userJoined = joined.filter(j => j.ownerEmail === parsedUser?.email || j.ownerName === parsedUser?.name)
+            const unique = userJoined.filter(j => !goalsData.some((d: any) => String(d.id) === String(j.id) || d.title === j.title))
+            merged = [...goalsData, ...unique]
+          }
+        } catch {
+          // ignore
+        }
+        setGoals(merged)
+
+        const totalGoals = merged.length
+        const completedGoals = merged.filter((goal: any) => goal.status === 'Completed').length
+        const inProgressGoals = merged.filter((goal: any) => goal.status === 'In Progress').length
         const completionRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0
 
         setStats({
@@ -128,6 +144,13 @@ export default function ProfilePage() {
         })
       } catch (error) {
         console.error('Error fetching profile stats:', error)
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mybuko-streak')
+      if (saved) {
+        setStreak(parseInt(saved, 10))
       }
     }
 
@@ -179,9 +202,60 @@ export default function ProfilePage() {
 
   const isDark = theme === 'dark'
   const joinedDate = formatJoinedDate(user.createdAt)
-  const goalSetterUnlocked = stats.totalGoals > 0
-  const firstVictoryUnlocked = stats.completedGoals > 0
-  const powerUserUnlocked = stats.completedGoals >= 10
+
+  const totalMilestones = goals.reduce((acc, g) => acc + (g.milestones?.length || 0), 0)
+  const completedMilestones = goals.reduce((acc, g) => acc + (g.milestones?.filter((m: any) => m.completed).length || 0), 0)
+  const totalNotes = goals.reduce((acc, g) => acc + (g.notes?.length || 0), 0)
+
+  const hasExplorer = goals.some(g => g.category === 'Travel' || g.category === 'Adventure')
+  const hasAdventurer = goals.some(g => g.category === 'Adventure' && g.status === 'Completed')
+  const hasPlanner = totalMilestones >= 5
+  const hasDreamChaser = stats.completedGoals >= 2
+  const hasGoalMaster = stats.completedGoals >= 5
+
+  const achievementsList = [
+    { id: 'explorer', name: 'Explorer', icon: '🧭', unlocked: hasExplorer, desc: 'Added Travel or Adventure dream' },
+    { id: 'adventurer', name: 'Adventurer', icon: '🧗', unlocked: hasAdventurer, desc: 'Completed an Adventure goal' },
+    { id: 'planner', name: 'Planner', icon: '📝', unlocked: hasPlanner, desc: 'Created 5+ milestones' },
+    { id: 'dream_chaser', name: 'Dream Chaser', icon: '✨', unlocked: hasDreamChaser, desc: 'Completed 2+ goals' },
+    { id: 'goal_master', name: 'Goal Master', icon: '🏆', unlocked: hasGoalMaster, desc: 'Completed 5+ goals' }
+  ]
+
+  // Dynamic Recent Activity Timeline logs
+  const activityLogs = (() => {
+    const logs: any[] = []
+    goals.forEach(g => {
+      if (g.createdAt) {
+        logs.push({
+          id: `create-${g.id}`,
+          text: `Logged a new dream: "${g.title}"`,
+          date: new Date(g.createdAt),
+          icon: '🎯'
+        })
+      }
+      (g.notes || []).forEach((n: any) => {
+        logs.push({
+          id: `note-${n.id}`,
+          text: `Added a note to "${g.title}"`,
+          date: new Date(n.createdAt || g.createdAt),
+          icon: '📝'
+        })
+      });
+      (g.milestones || []).forEach((m: any) => {
+        if (m.completed) {
+          logs.push({
+            id: `milestone-${m.id}`,
+            text: `Achieved milestone: "${m.title}" in "${g.title}"`,
+            date: new Date(m.createdAt || g.createdAt),
+            icon: '✅'
+          })
+        }
+      })
+    })
+    return logs
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 5)
+  })()
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -413,82 +487,133 @@ export default function ProfilePage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr,1.9fr] mb-6">
-          <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-8 space-y-6`}>
-            <div className="flex flex-wrap items-start gap-5">
-              <div className="relative w-28 h-28 rounded-3xl overflow-hidden bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
-                {profilePicture ? (
-                  <img src={profilePicture} alt="Profile" className="h-full w-full object-cover" />
-                ) : (
-                  <User className="w-14 h-14 text-white" />
-                )}
-                <button
-                  type="button"
-                  onClick={triggerFileInput}
-                  className="absolute bottom-2 right-2 inline-flex items-center justify-center rounded-full bg-white/95 p-2 text-blue-600 shadow-sm transition hover:bg-white"
-                  aria-label="Edit profile picture"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <input
-                  ref={hiddenFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePictureChange}
-                  className="hidden"
+          <div className="space-y-6">
+            <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-8 space-y-6`}>
+              <div className="flex flex-wrap items-start gap-5">
+                <div className="relative w-28 h-28 rounded-3xl overflow-hidden bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+                  {profilePicture ? (
+                    <img src={profilePicture} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="w-14 h-14 text-white" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={triggerFileInput}
+                    className="absolute bottom-2 right-2 inline-flex items-center justify-center rounded-full bg-white/95 p-2 text-blue-600 shadow-sm transition hover:bg-white"
+                    aria-label="Edit profile picture"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <input
+                    ref={hiddenFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePictureChange}
+                    className="hidden"
+                  />
+                </div>
+                <div className="flex-1 min-w-[180px]">
+                  <h2 className={`text-3xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{user.name}</h2>
+                  <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'} mt-1`}>{user.email}</p>
+                  <p className={`${isDark ? 'text-slate-400' : 'text-sm text-gray-500'} mt-3`}>Joined {joinedDate}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className={`block text-sm font-medium ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>Bio</label>
+                  <div className="flex items-center gap-2">
+                    {isBioEditing ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={saveBio}
+                          className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                          aria-label="Save bio"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelBioEditing}
+                          className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                          aria-label="Cancel bio editing"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={startBioEditing}
+                        className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        aria-label="Edit bio"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <textarea
+                  value={isBioEditing ? bioDraft : bio}
+                  onChange={(event) => setBioDraft(event.target.value)}
+                  rows={5}
+                  placeholder="Tell us something about yourself..."
+                  readOnly={!isBioEditing}
+                  className={`w-full rounded-3xl border px-4 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${isDark ? 'bg-slate-700 border-slate-700 text-slate-100' : 'bg-gray-55 border-gray-200 text-gray-900'} ${!isBioEditing ? 'opacity-80 cursor-not-allowed' : ''}`}
                 />
               </div>
-              <div className="flex-1 min-w-[180px]">
-                <h2 className={`text-3xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{user.name}</h2>
-                <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'} mt-1`}>{user.email}</p>
-                <p className={`${isDark ? 'text-slate-400' : 'text-sm text-gray-500'} mt-3`}>Joined {joinedDate}</p>
+              {saveMessage && <p className="text-sm text-emerald-400">{saveMessage}</p>}
+            </div>
+
+            {/* STREAK STATUS WIDGET */}
+            <div className={`rounded-3xl border p-6 shadow-xl space-y-4 transition-all duration-300 ${
+              isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-white border-slate-200'
+            }`}>
+              <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
+                <Flame className="w-5 h-5 text-orange-500 animate-pulse" />
+                Streak Status
+              </h3>
+              <div className={`flex items-center gap-4 border p-4 rounded-2xl transition-colors duration-300 ${
+                isDark ? 'bg-slate-900/40 border-slate-750' : 'bg-slate-50 border-slate-150'
+              }`}>
+                <div className="w-11 h-11 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-500 shrink-0">
+                  <Flame className="w-6 h-6 animate-bounce" />
+                </div>
+                <div>
+                  <h4 className={`font-bold text-sm ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>{streak} Day Planning Streak</h4>
+                  <p className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Return daily to increment your active goals planning streak</p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className={`block text-sm font-medium ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>Bio</label>
-                <div className="flex items-center gap-2">
-                  {isBioEditing ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={saveBio}
-                        className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
-                        aria-label="Save bio"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelBioEditing}
-                        className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
-                        aria-label="Cancel bio editing"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={startBioEditing}
-                      className={`inline-flex items-center justify-center rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-slate-100 hover:bg-slate-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
-                      aria-label="Edit bio"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+            {/* RECENT ACTIVITY TIMELINE */}
+            <div className={`rounded-3xl border p-6 shadow-xl space-y-4 transition-all duration-300 ${
+              isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-white border-slate-200'
+            }`}>
+              <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
+                <Activity className="w-5 h-5 text-indigo-500 animate-pulse" />
+                Recent Activity Timeline
+              </h3>
+              <div className="relative pl-5 space-y-4">
+                <div className={`absolute left-[7px] top-1.5 bottom-1.5 w-[2.5px] ${isDark ? 'bg-slate-900' : 'bg-slate-200'}`} />
+                {activityLogs.length === 0 ? (
+                  <p className={`text-xs italic ${isDark ? 'text-slate-400' : 'text-slate-550'}`}>No recent activities performed.</p>
+                ) : (
+                  activityLogs.map((log) => (
+                    <div key={log.id} className="relative flex items-start gap-3">
+                      <span className="absolute -left-[23px] top-0.5 text-sm">{log.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-semibold leading-normal ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>{log.text}</p>
+                        <span className={`text-[9px] mt-0.5 block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {log.date.toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-              <textarea
-                value={isBioEditing ? bioDraft : bio}
-                onChange={(event) => setBioDraft(event.target.value)}
-                rows={5}
-                placeholder="Tell us something about yourself..."
-                readOnly={!isBioEditing}
-                className={`w-full rounded-3xl border px-4 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${isDark ? 'bg-slate-700 border-slate-700 text-slate-100' : 'bg-gray-50 border-gray-200 text-gray-900'} ${!isBioEditing ? 'opacity-80 cursor-not-allowed' : ''}`}
-              />
             </div>
-            {saveMessage && <p className="text-sm text-emerald-400">{saveMessage}</p>}
           </div>
 
           <div className="space-y-6">
@@ -552,40 +677,35 @@ export default function ProfilePage() {
 
             <div className={`${isDark ? 'bg-slate-800/60' : 'bg-white'} rounded-3xl shadow-xl p-8`}>
               <div className="flex items-center gap-2 mb-6">
-                <Award className="w-6 h-6" />
+                <Award className="w-6 h-6 text-purple-550" />
                 <h2 className={`text-2xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Achievements</h2>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className={`${isDark ? 'rounded-3xl border p-6 transition' : 'rounded-3xl border p-6 transition'} ${goalSetterUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-blue-50 border-blue-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-300 opacity-60')}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>🎯 Goal Setter</p>
-                    {goalSetterUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                {achievementsList.map((badge) => (
+                  <div 
+                    key={badge.id}
+                    className={`relative group aspect-square rounded-2xl flex flex-col items-center justify-center border transition-all p-3 ${
+                      badge.unlocked 
+                        ? isDark 
+                          ? 'bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border-indigo-500/20 hover:scale-105' 
+                          : 'bg-gradient-to-br from-indigo-50 to-violet-50 border-indigo-200 hover:scale-105 shadow-sm'
+                        : isDark
+                          ? 'bg-slate-905 border-slate-800 grayscale opacity-30 cursor-not-allowed'
+                          : 'bg-gray-50 border-gray-200 grayscale opacity-40 cursor-not-allowed'
+                    }`}
+                  >
+                    <span className="text-3xl mb-1">{badge.icon}</span>
+                    <span className={`text-[11px] font-bold text-center ${isDark ? 'text-slate-200' : 'text-slate-850'}`}>{badge.name}</span>
+                    {/* Tooltip description */}
+                    <div className={`absolute bottom-full mb-2.5 hidden group-hover:block w-36 border rounded-xl p-2 text-[10px] font-bold text-center z-30 shadow-2xl pointer-events-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-850'
+                    }`}>
+                      <p className="font-extrabold text-indigo-600">{badge.name}</p>
+                      <p className={`mt-0.5 font-medium leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{badge.desc}</p>
+                    </div>
                   </div>
-                  <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>
-                    {goalSetterUnlocked ? 'Unlocked' : 'Locked until you create your first goal'}
-                  </p>
-                </div>
-
-                <div className={`${isDark ? 'rounded-3xl border p-6 transition' : 'rounded-3xl border p-6 transition'} ${firstVictoryUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-green-50 border-green-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-300 opacity-60')}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>✅ First Victory</p>
-                    {firstVictoryUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
-                  </div>
-                  <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>
-                    {firstVictoryUnlocked ? 'Unlocked' : 'Locked until you complete your first goal'}
-                  </p>
-                </div>
-
-                <div className={`${isDark ? 'rounded-3xl border p-6 transition' : 'rounded-3xl border p-6 transition'} ${powerUserUnlocked ? (isDark ? 'bg-slate-800 border-slate-700' : 'bg-purple-50 border-purple-200') : (isDark ? 'bg-slate-900 border-slate-700 opacity-60' : 'bg-gray-50 border-gray-300 opacity-60')}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>🏆 Power User</p>
-                    {powerUserUnlocked && <CheckCircle className="w-5 h-5 text-emerald-400" />}
-                  </div>
-                  <p className={`${isDark ? 'text-slate-300' : 'text-sm text-gray-600'} mt-2`}>
-                    {powerUserUnlocked ? 'Unlocked' : 'Locked until you complete 10 goals'}
-                  </p>
-                </div>
+                ))}
               </div>
             </div>
 
