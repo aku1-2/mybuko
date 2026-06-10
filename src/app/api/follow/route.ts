@@ -17,6 +17,26 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ ok: true })
 
     await prisma.follow.create({ data: { followerId: verified.userId, followingId } })
+
+    try {
+      const follower = await prisma.user.findUnique({
+        where: { id: verified.userId },
+        select: { name: true }
+      })
+      const followerName = follower?.name || 'Someone'
+
+      await prisma.notification.create({
+        data: {
+          userId: followingId,
+          senderId: verified.userId,
+          type: 'FOLLOW',
+          message: `${followerName} has followed you. Follow back!`
+        }
+      })
+    } catch (notifErr) {
+      console.error('Failed to create follow notification:', notifErr)
+    }
+
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('Follow error', err)

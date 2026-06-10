@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
+import NotificationToastListener from '@/components/NotificationToastListener'
 
 type Theme = 'light' | 'dark'
 
@@ -36,6 +37,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider value={{ theme, setTheme: toggleTheme }}>
       {children}
+      <NotificationToastListener />
     </ThemeContext.Provider>
   )
 }
