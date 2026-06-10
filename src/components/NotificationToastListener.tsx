@@ -21,6 +21,9 @@ export default function NotificationToastListener() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    const controller = new AbortController()
+    const { signal } = controller
+
     // Set up local state for current user id when available
     const initUser = () => {
       const userRaw = localStorage.getItem('user')
@@ -39,25 +42,29 @@ export default function NotificationToastListener() {
     initUser()
 
     const fetchFollowing = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return
       const token = localStorage.getItem('token')
       const userRaw = localStorage.getItem('user')
       if (!token || !userRaw) return
 
       try {
         const parsed = JSON.parse(userRaw)
-        const res = await fetch(`/api/users/${parsed.id}/following`)
+        const res = await fetch(`/api/users/${parsed.id}/following`, { signal })
         if (res.ok) {
           const data = await res.json()
           const list = data.following || []
           setFollowingIds(list.map((u: any) => u.id))
         }
-      } catch (err) {
-        console.error('Failed to fetch following list:', err)
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.warn('Failed to fetch following list:', err.message || err)
+        }
       }
     }
 
     // Check notifications periodically
     const checkNotifications = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return
       const token = localStorage.getItem('token')
       const userRaw = localStorage.getItem('user')
       if (!token || !userRaw) return
@@ -69,7 +76,8 @@ export default function NotificationToastListener() {
         const res = await fetch('/api/notifications', {
           headers: {
             'Authorization': `Bearer ${token}`
-          }
+          },
+          signal
         })
         if (!res.ok) return
 
@@ -102,8 +110,10 @@ export default function NotificationToastListener() {
           const updatedSeenIds = [...seenIds, ...newNotifs.map((n) => n.id)]
           localStorage.setItem('mybuko-seen-follow-notifs', JSON.stringify(updatedSeenIds))
         }
-      } catch (err) {
-        console.error('Error polling follow notifications:', err)
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.warn('Error polling follow notifications:', err.message || err)
+        }
       }
     }
 
@@ -111,7 +121,10 @@ export default function NotificationToastListener() {
     checkNotifications()
     const interval = setInterval(checkNotifications, 5000) // Poll every 5 seconds for quicker updates
 
-    return () => clearInterval(interval)
+    return () => {
+      controller.abort()
+      clearInterval(interval)
+    }
   }, [toasts])
 
   const handleDismiss = (id: string) => {
@@ -149,12 +162,12 @@ export default function NotificationToastListener() {
             },
             body: JSON.stringify({ id: notification.id })
           })
-        } catch (dbErr) {
-          console.error('Failed to mark notification as read in DB:', dbErr)
+        } catch (dbErr: any) {
+          console.warn('Failed to mark notification as read in DB:', dbErr.message || dbErr)
         }
       }
-    } catch (err) {
-      console.error('Failed to follow back:', err)
+    } catch (err: any) {
+      console.warn('Failed to follow back:', err.message || err)
     }
   }
 

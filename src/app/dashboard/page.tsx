@@ -23,6 +23,8 @@ export default function DashboardPage() {
   const [filterCategory, setFilterCategory] = useState('All')
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<'goals' | 'posts' | 'community'>('goals')
+  const [milestoneInputs, setMilestoneInputs] = useState<Record<string, string>>({})
+  const [noteInputs, setNoteInputs] = useState<Record<string, string>>({})
 
   const CATEGORIES = ['All', 'Travel', 'Skills', 'Health', 'Adventure', 'Personal']
 
@@ -249,6 +251,261 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error deleting goal:', error)
+    }
+  }
+
+  const toggleMilestone = async (goalId: string, milestoneId: string, completed: boolean) => {
+    if (String(goalId).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(goalId)) {
+              const milestones = (g.milestones || []).map((m: any) => {
+                if (String(m.id) === String(milestoneId)) {
+                  return { ...m, completed: !completed }
+                }
+                return m
+              })
+              return { ...g, milestones }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          setGoals(prev => prev.map(g => String(g.id) === String(goalId) ? { ...g, milestones: (g.milestones || []).map((m: any) => String(m.id) === String(milestoneId) ? { ...m, completed: !completed } : m) } : g))
+        }
+      } catch (err) {
+        console.error('Error toggling local milestone:', err)
+      }
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/goals/${goalId}/milestones/${milestoneId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ completed: !completed })
+      })
+      if (res.ok) {
+        const updatedMilestone = await res.json()
+        setGoals(prev => prev.map(g => {
+          if (g.id === goalId) {
+            return {
+              ...g,
+              milestones: (g.milestones || []).map((m: any) => m.id === milestoneId ? updatedMilestone : m)
+            }
+          }
+          return g
+        }))
+      }
+    } catch (error) {
+      console.error('Error updating milestone:', error)
+    }
+  }
+
+  const addMilestone = async (goalId: string, title: string) => {
+    if (!title.trim()) return
+
+    if (String(goalId).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const newM = {
+            id: `milestone-${Date.now()}`,
+            title: title.trim(),
+            completed: false,
+            createdAt: new Date().toISOString()
+          }
+          const updated = joined.map(g => {
+            if (String(g.id) === String(goalId)) {
+              return { ...g, milestones: [...(g.milestones || []), newM] }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          setGoals(prev => prev.map(g => String(g.id) === String(goalId) ? { ...g, milestones: [...(g.milestones || []), newM] } : g))
+        }
+      } catch (err) {
+        console.error('Error adding local milestone:', err)
+      }
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/goals/${goalId}/milestones`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title })
+      })
+
+      if (res.ok) {
+        const newM = await res.json()
+        setGoals(prev => prev.map(g => {
+          if (g.id === goalId) {
+            return {
+              ...g,
+              milestones: [...(g.milestones || []), newM]
+            }
+          }
+          return g
+        }))
+      }
+    } catch (error) {
+      console.error('Error adding milestone:', error)
+    }
+  }
+
+  const deleteMilestone = async (goalId: string, milestoneId: string) => {
+    if (String(goalId).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(goalId)) {
+              const milestones = (g.milestones || []).filter((m: any) => String(m.id) !== String(milestoneId))
+              return { ...g, milestones }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          setGoals(prev => prev.map(g => String(g.id) === String(goalId) ? { ...g, milestones: (g.milestones || []).filter((m: any) => String(m.id) !== String(milestoneId)) } : g))
+        }
+      } catch (err) {
+        console.error('Error deleting local milestone:', err)
+      }
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/goals/${goalId}/milestones/${milestoneId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        setGoals(prev => prev.map(g => {
+          if (g.id === goalId) {
+            return {
+              ...g,
+              milestones: (g.milestones || []).filter((m: any) => m.id !== milestoneId)
+            }
+          }
+          return g
+        }))
+      }
+    } catch (error) {
+      console.error('Error deleting milestone:', error)
+    }
+  }
+
+  const addNote = async (goalId: string, content: string) => {
+    if (!content.trim()) return
+
+    if (String(goalId).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const newN = {
+            id: `note-${Date.now()}`,
+            content: content.trim(),
+            createdAt: new Date().toISOString()
+          }
+          const updated = joined.map(g => {
+            if (String(g.id) === String(goalId)) {
+              return { ...g, notes: [newN, ...(g.notes || [])] }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          setGoals(prev => prev.map(g => String(g.id) === String(goalId) ? { ...g, notes: [newN, ...(g.notes || [])] } : g))
+        }
+      } catch (err) {
+        console.error('Error adding local note:', err)
+      }
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/goals/${goalId}/notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content })
+      })
+
+      if (res.ok) {
+        const newN = await res.json()
+        setGoals(prev => prev.map(g => {
+          if (g.id === goalId) {
+            return {
+              ...g,
+              notes: [newN, ...(g.notes || [])]
+            }
+          }
+          return g
+        }))
+      }
+    } catch (error) {
+      console.error('Error adding note:', error)
+    }
+  }
+
+  const deleteNote = async (goalId: string, noteId: string) => {
+    if (String(goalId).startsWith('local-')) {
+      try {
+        const joinedRaw = window.localStorage.getItem('mybuko-joined-goals')
+        if (joinedRaw) {
+          const joined = JSON.parse(joinedRaw) as any[]
+          const updated = joined.map(g => {
+            if (String(g.id) === String(goalId)) {
+              const notes = (g.notes || []).filter((n: any) => String(n.id) !== String(noteId))
+              return { ...g, notes }
+            }
+            return g
+          })
+          window.localStorage.setItem('mybuko-joined-goals', JSON.stringify(updated))
+          setGoals(prev => prev.map(g => String(g.id) === String(goalId) ? { ...g, notes: (g.notes || []).filter((n: any) => String(n.id) !== String(noteId)) } : g))
+        }
+      } catch (err) {
+        console.error('Error deleting local note:', err)
+      }
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/goals/${goalId}/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        setGoals(prev => prev.map(g => {
+          if (g.id === goalId) {
+            return {
+              ...g,
+              notes: (g.notes || []).filter((n: any) => n.id !== noteId)
+            }
+          }
+          return g
+        }))
+      }
+    } catch (error) {
+      console.error('Error deleting note:', error)
     }
   }
 
@@ -570,31 +827,177 @@ export default function DashboardPage() {
                   </div>
 
                   {openInfoId === goal.id && (
-                    <div className={`mt-4 rounded-2xl border p-4 ${isDark ? 'border-slate-700 bg-slate-900/70' : 'border-gray-200 bg-white'}`}>
-                      <div className="grid sm:grid-cols-3 gap-4 text-sm text-slate-400">
+                    <div className={`mt-4 rounded-2xl border p-6 ${isDark ? 'border-slate-800 bg-slate-900/40 backdrop-blur-md' : 'border-gray-200 bg-slate-50/50'} space-y-6`}>
+                      
+                      {/* Grid details */}
+                      <div className="grid sm:grid-cols-3 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <CalendarDays className="w-4 h-4 text-blue-400" />
-                          <span className="font-medium text-slate-200">Deadline:</span>
-                          <span>{goal.targetDate ? new Date(goal.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'}</span>
+                          <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Deadline:</span>
+                          <span className={isDark ? 'text-slate-200' : 'text-gray-800'}>{goal.targetDate ? new Date(goal.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <DollarSign className="w-4 h-4 text-emerald-400" />
-                          <span className="font-medium text-slate-200">Budget:</span>
-                          <span>{goal.budget != null ? `₹${Number(goal.budget).toLocaleString()}` : 'Not set'}</span>
+                          <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Budget:</span>
+                          <span className={isDark ? 'text-slate-200' : 'text-gray-800'}>{goal.budget != null ? `₹${Number(goal.budget).toLocaleString()}` : 'Not set'}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-pink-400" />
-                          <span className="font-medium text-slate-200">Location:</span>
-                          <span>{goal.location || 'Not set'}</span>
+                          <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Location:</span>
+                          <span className={isDark ? 'text-slate-200' : 'text-gray-800'}>{goal.location || 'Not set'}</span>
                         </div>
                       </div>
+
+                      {/* Tags */}
                       {goal.tags?.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-300">
+                        <div className="flex flex-wrap gap-2 text-xs">
                           {goal.tags.map((tag: string, index: number) => (
-                            <span key={`${goal.id}-tag-${index}`} className="rounded-full bg-slate-800/80 px-3 py-1">#{tag}</span>
+                            <span key={`${goal.id}-tag-${index}`} className={`rounded-full px-3 py-1 ${isDark ? 'bg-slate-800/80 text-slate-300' : 'bg-gray-200/80 text-gray-700'}`}>#{tag}</span>
                           ))}
                         </div>
                       )}
+
+                      {/* Milestones and Notes Section */}
+                      <div className="grid md:grid-cols-2 gap-6 pt-6 border-t border-slate-700/30">
+                        
+                        {/* Milestones Column */}
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>
+                              <span>Milestones</span>
+                              {goal.milestones?.length > 0 && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-gray-205 text-gray-600'}`}>
+                                  {goal.milestones.filter((m: any) => m.completed).length}/{goal.milestones.length}
+                                </span>
+                              )}
+                            </h4>
+                          </div>
+
+                          {/* List of milestones */}
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {(!goal.milestones || goal.milestones.length === 0) ? (
+                              <p className={`text-xs italic ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>No milestones yet.</p>
+                            ) : (
+                              goal.milestones.map((m: any) => (
+                                <div key={m.id} className={`flex items-center gap-2 p-2 rounded-lg text-xs group/item transition ${isDark ? 'bg-slate-800/40 hover:bg-slate-800/80' : 'bg-gray-100/60 hover:bg-gray-100'}`}>
+                                  <button
+                                    onClick={() => toggleMilestone(goal.id, m.id, m.completed)}
+                                    className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                      m.completed
+                                        ? 'bg-green-500 border-green-500 text-white'
+                                        : isDark ? 'border-slate-600 hover:border-slate-400' : 'border-gray-300 hover:border-blue-500'
+                                    }`}
+                                    id={`milestone-check-${goal.id}-${m.id}`}
+                                  >
+                                    {m.completed && <Check className="w-3 h-3 text-white" />}
+                                  </button>
+                                  <span className={`flex-1 truncate ${m.completed ? 'line-through text-slate-500' : isDark ? 'text-slate-300' : 'text-gray-750'}`}>
+                                    {m.title}
+                                  </span>
+                                  <button
+                                    onClick={() => deleteMilestone(goal.id, m.id)}
+                                    className="opacity-0 group-hover/item:opacity-100 p-1 text-rose-500 hover:bg-rose-500/10 rounded transition"
+                                    aria-label="Delete milestone"
+                                    id={`milestone-delete-${goal.id}-${m.id}`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* Add milestone input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={milestoneInputs[goal.id] || ''}
+                              onChange={(e) => setMilestoneInputs(prev => ({ ...prev, [goal.id]: e.target.value }))}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  addMilestone(goal.id, milestoneInputs[goal.id] || '')
+                                  setMilestoneInputs(prev => ({ ...prev, [goal.id]: '' }))
+                                }
+                              }}
+                              placeholder="New milestone..."
+                              className={`flex-1 px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-500 ${isDark ? 'bg-slate-805 border-slate-700 text-slate-200' : 'bg-white border-gray-300 text-gray-900'}`}
+                              id={`milestone-input-${goal.id}`}
+                            />
+                            <button
+                              onClick={() => {
+                                addMilestone(goal.id, milestoneInputs[goal.id] || '')
+                                setMilestoneInputs(prev => ({ ...prev, [goal.id]: '' }))
+                              }}
+                              className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-1 font-semibold"
+                              id={`milestone-add-btn-${goal.id}`}
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Notes Column */}
+                        <div className="space-y-4">
+                          <h4 className={`text-base font-bold ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>Notes</h4>
+
+                          {/* List of notes */}
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {(!goal.notes || goal.notes.length === 0) ? (
+                              <p className={`text-xs italic ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>No notes yet.</p>
+                            ) : (
+                              goal.notes.map((n: any) => (
+                                <div key={n.id} className={`flex items-start gap-2 p-2 rounded-lg text-xs group/item transition ${isDark ? 'bg-slate-800/40 hover:bg-slate-800/80' : 'bg-gray-100/60 hover:bg-gray-100'}`}>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`whitespace-pre-wrap ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>{n.content}</p>
+                                    <span className={`text-[10px] block mt-1 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
+                                      {new Date(n.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => deleteNote(goal.id, n.id)}
+                                    className="opacity-0 group-hover/item:opacity-100 p-1 text-rose-500 hover:bg-rose-500/10 rounded transition"
+                                    aria-label="Delete note"
+                                    id={`note-delete-${goal.id}-${n.id}`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* Add note input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={noteInputs[goal.id] || ''}
+                              onChange={(e) => setNoteInputs(prev => ({ ...prev, [goal.id]: e.target.value }))}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  addNote(goal.id, noteInputs[goal.id] || '')
+                                  setNoteInputs(prev => ({ ...prev, [goal.id]: '' }))
+                                }
+                              }}
+                              placeholder="Add a note..."
+                              className={`flex-1 px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-500 ${isDark ? 'bg-slate-805 border-slate-700 text-slate-200' : 'bg-white border-gray-300 text-gray-900'}`}
+                              id={`note-input-${goal.id}`}
+                            />
+                            <button
+                              onClick={() => {
+                                addNote(goal.id, noteInputs[goal.id] || '')
+                                setNoteInputs(prev => ({ ...prev, [goal.id]: '' }))
+                              }}
+                              className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-1 font-semibold"
+                              id={`note-add-btn-${goal.id}`}
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
                     </div>
                   )}
                 </div>

@@ -15,6 +15,8 @@ type Goal = {
   status?: string
   progress?: number
   createdAt: string
+  milestones?: any[]
+  notes?: any[]
 }
 
 const formatTags = (tags?: string[] | string) => {
@@ -53,6 +55,14 @@ export async function createGoal(data: Partial<Goal>) {
 export async function getGoal(id: string) {
   const goal = await prisma.goal.findUnique({
     where: { id },
+    include: {
+      milestones: {
+        orderBy: { order: 'asc' }
+      },
+      notes: {
+        orderBy: { createdAt: 'desc' }
+      }
+    }
   })
 
   return goal ? parseGoal(goal) : null
@@ -78,6 +88,14 @@ export async function updateGoal(id: string, updates: Partial<Goal>) {
       status: updates.status ?? existing.status,
       progress: updates.progress ?? existing.progress,
     },
+    include: {
+      milestones: {
+        orderBy: { order: 'asc' }
+      },
+      notes: {
+        orderBy: { createdAt: 'desc' }
+      }
+    }
   })
 
   return parseGoal(goal)
@@ -96,6 +114,14 @@ export async function listGoals(userId?: string) {
 
   const goals = await prisma.goal.findMany({
     where: { userId },
+    include: {
+      milestones: {
+        orderBy: { order: 'asc' }
+      },
+      notes: {
+        orderBy: { createdAt: 'desc' }
+      }
+    },
     orderBy: { createdAt: 'desc' },
   })
 
