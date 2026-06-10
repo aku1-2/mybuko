@@ -18,6 +18,7 @@ export default function CreateExplorePostPage() {
   const [text, setText] = useState('')
   const [image, setImage] = useState('')
   const [imageName, imageNameSet] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -46,10 +47,12 @@ export default function CreateExplorePostPage() {
     if (!file) {
       setImage('')
       imageNameSet('')
+      setImageFile(null)
       return
     }
 
     imageNameSet(file.name)
+    setImageFile(file)
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -67,6 +70,25 @@ export default function CreateExplorePostPage() {
 
     try {
       const token = localStorage.getItem('token')
+      let finalImageUrl = null
+
+      if (imageFile) {
+        const formData = new FormData()
+        formData.append('file', imageFile)
+        
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json()
+          finalImageUrl = uploadData.url
+        } else {
+          console.error('Failed to upload image to /api/upload')
+        }
+      }
+
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: {
@@ -75,7 +97,7 @@ export default function CreateExplorePostPage() {
         },
         body: JSON.stringify({
           text: text.trim(),
-          image: image || null
+          image: finalImageUrl
         })
       })
 
