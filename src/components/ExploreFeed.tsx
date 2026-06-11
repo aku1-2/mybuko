@@ -60,6 +60,39 @@ const TRENDING_GOALS: TrendingGoal[] = [
   { id: 'read-books', title: 'Read 24 Books', subtitle: 'Set a reading goal and share the best takeaways' },
 ]
 
+// Relative time helper
+const getRelativeTime = (date: Date) => {
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHr = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHr / 24)
+
+  if (diffSec < 60) return 'just now'
+  if (diffMin < 60) return `${diffMin}m ago`
+  if (diffHr < 24) return `${diffHr}h ago`
+  if (diffDay === 1) return 'yesterday'
+  return `${diffDay}d ago`
+}
+
+// Dynamic date formatter
+const formatPostDate = (dateVal: any) => {
+  if (!dateVal) return 'just now'
+  if (typeof dateVal === 'string' && (dateVal.includes('ago') || dateVal.toLowerCase() === 'just now' || dateVal.toLowerCase() === 'yesterday')) {
+    return dateVal
+  }
+  const date = new Date(dateVal)
+  if (isNaN(date.getTime())) {
+    const numVal = Number(dateVal)
+    if (!isNaN(numVal)) {
+      return getRelativeTime(new Date(numVal))
+    }
+    return String(dateVal)
+  }
+  return getRelativeTime(date)
+}
+
 const initialPosts: Post[] = []
 
 export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }) {
@@ -171,14 +204,14 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
             role: 'Community Member',
             text: p.text,
             image: p.image || undefined,
-            date: new Date(p.createdAt).toLocaleDateString(),
+            date: p.createdAt,
             likes: p.likes?.length || 0,
             liked: p.likes?.some((l: any) => l.userId === currentUserId) || false,
             comments: (p.comments || []).map((c: any) => ({
               id: c.id,
               author: c.user?.name || 'Community Member',
               text: c.content,
-              date: new Date(c.createdAt).toLocaleDateString()
+              date: c.createdAt
             }))
           }))
           setPosts(mappedPosts)
@@ -569,7 +602,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
             )}
             <div className="min-w-0">
               <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100 hover:underline">{post.author}</p>
-              <p className="truncate text-sm text-slate-500 dark:text-slate-400">{post.role} • {post.date}</p>
+              <p className="truncate text-sm text-slate-500 dark:text-slate-400">{post.role} • {formatPostDate(post.date)}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -654,7 +687,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
         <div className="border-t border-slate-100 px-6 py-4 bg-white dark:border-slate-800 dark:bg-slate-900">
           {post.comments.map((c) => (
             <div key={c.id} className="mb-3">
-              <p className="text-sm"><span className="font-semibold">{c.author}</span> <span className="text-slate-500">• {c.date}</span></p>
+              <p className="text-sm"><span className="font-semibold">{c.author}</span> <span className="text-slate-500">• {formatPostDate(c.date)}</span></p>
               <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{c.text}</p>
             </div>
           ))}
