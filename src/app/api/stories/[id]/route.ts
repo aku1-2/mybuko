@@ -67,6 +67,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const story = await prisma.story.findUnique({ where: { id: storyId } })
         if (!story) return NextResponse.json({ error: 'Story not found' }, { status: 404 })
 
+        // Create StoryComment in DB so it shows up in stories viewer list
+        await prisma.storyComment.create({
+            data: {
+                storyId,
+                userId: user.userId,
+                content
+            }
+        })
+
         // Find or create direct chat between commenter and story owner
         if (user.userId === story.userId) {
             return NextResponse.json({ success: true, selfComment: true })

@@ -24,6 +24,23 @@ const INSPIRATIONAL_QUOTES = [
   { quote: "Consistency is what transforms average into excellence.", author: "Success Principles" }
 ];
 
+const formatRealTime = (dateVal: any) => {
+  if (!dateVal) return ''
+  const date = new Date(dateVal)
+  if (isNaN(date.getTime())) {
+    return String(dateVal)
+  }
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
+}
+
+
 export default function DashboardPage() {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
@@ -99,24 +116,60 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Dynamic user posts filtering
-  useEffect(() => {
+  // Fetch user specific posts from database
+  const fetchMyPosts = async () => {
     if (!user) return
     try {
-      const stored = window.localStorage.getItem('mybuko-explore-posts')
-      if (!stored) {
-        setMyPosts([])
-        return
+      const res = await fetch('/api/posts')
+      if (res.ok) {
+        const data = await res.json()
+        const dbPosts = data.posts || []
+        const userSpecific = dbPosts.filter((post: any) => {
+          return post.user?.email === user.email || post.userId === user.id
+        })
+        const mapped = userSpecific.map((p: any) => ({
+          id: p.id,
+          author: p.user?.name || user.name,
+          authorEmail: p.user?.email || user.email,
+          text: p.text,
+          image: p.image || undefined,
+          date: p.createdAt,
+          likes: p.likes?.length || 0,
+          comments: p.comments || []
+        }))
+        setMyPosts(mapped)
       }
-      const parsed = JSON.parse(stored) as any[]
-      const filtered = parsed.filter((post) => {
-        return post.authorEmail === user.email || post.author === user.name
-      })
-      setMyPosts(filtered)
-    } catch {
-      setMyPosts([])
+    } catch (err) {
+      console.error('Failed to fetch my posts:', err)
     }
-  }, [user, goals])
+  }
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (res.ok || res.status === 404) {
+        setMyPosts(prev => prev.filter(p => p.id !== postId))
+      } else {
+        alert('Failed to delete post.')
+      }
+    } catch (err) {
+      console.error('Error deleting post:', err)
+      alert('Error deleting post.')
+    }
+  }
+
+  // Fetch my posts when user loads or tab changes to posts
+  useEffect(() => {
+    if (user && activeTab === 'posts') {
+      fetchMyPosts()
+    }
+  }, [user, activeTab])
 
   // Load/save streak counter
   useEffect(() => {
@@ -1113,7 +1166,7 @@ export default function DashboardPage() {
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    {tab === 'goals' ? 'Dreams' : tab === 'posts' ? 'My Stories' : 'Community'}
+                    {tab === 'goals' ? 'Dreams' : tab === 'posts' ? 'Posts' : 'Community'}
                   </button>
                 ))}
               </div>
@@ -1556,30 +1609,52 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB CONTENT: MY STORIES */}
+            {/* TAB CONTENT: POSTS */}
             {activeTab === 'posts' && (
               <div className="space-y-4">
                 {filteredMyPosts.length === 0 ? (
-                  <div className="rounded-[32px] border border-white/5 bg-slate-900/10 p-12 text-center shadow">
-                    <p className="text-lg font-bold">{searchTerm ? 'No community stories match your search query' : 'No community stories published yet'}</p>
+                  <div className={`rounded-[32px] border p-12 text-center shadow transition-all duration-300 ${
+                    isDark ? 'border-white/5 bg-slate-900/10 text-slate-100' : 'border-slate-200 bg-white text-slate-900'
+                  }`}>
+                    <p className="text-lg font-bold">{searchTerm ? 'No posts match your search query' : 'No posts published yet'}</p>
                     <p className="text-sm text-slate-400 mt-2">{searchTerm ? 'Try a different search query.' : 'Create a post on the Explore Community Feed and it will appear here.'}</p>
                   </div>
                 ) : (
                   filteredMyPosts.map((post) => (
-                    <div key={post.id} className="rounded-3xl border border-white/5 bg-slate-900/15 p-6 space-y-4 shadow-xl">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2">
-                          <h3 className="text-lg font-bold">{post.author}</h3>
-                          <p className="text-sm text-slate-300 leading-relaxed">{post.text}</p>
-                          <div className="flex flex-wrap gap-2 text-xs font-semibold pt-2">
-                            <span className="rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1">{post.likes} Likes</span>
-                            <span className="rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1">{post.comments?.length ?? 0} Comments</span>
-                            <span className="rounded-full bg-slate-800 text-slate-300 px-3 py-1">{post.date}</span>
+                    <div key={post.id} className={`rounded-3xl border p-6 shadow-xl transition-all duration-300 ${
+                      isDark ? 'border-white/5 bg-slate-900/15' : 'border-slate-200 bg-white'
+                    }`}>
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-6">
+                        {post.image ? (
+                          <img 
+                            src={post.image} 
+                            alt="Post visual" 
+                            className="h-32 w-full sm:w-48 object-cover rounded-2xl shadow-md shrink-0" 
+                          />
+                        ) : null}
+                        <div className="flex-1 space-y-3 min-w-0">
+                          <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{post.author}</h3>
+                          <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-350' : 'text-slate-650'}`}>{post.text}</p>
+                          <div className="flex flex-wrap items-center gap-2.5 text-xs font-semibold pt-2">
+                            <span className={`rounded-full px-3 py-1 ${isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-250'}`}>{post.likes} Likes</span>
+                            <span className={`rounded-full px-3 py-1 ${isDark ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-50 text-blue-700 border border-blue-250'}`}>{post.comments?.length ?? 0} Comments</span>
+                            <span className={`rounded-full px-3 py-1 ${isDark ? 'bg-slate-800 text-slate-350' : 'bg-slate-150 text-slate-600'}`}>{formatRealTime(post.date)}</span>
                           </div>
                         </div>
-                        {post.image ? (
-                          <img src={post.image} alt="Story visual" className="h-36 w-full sm:w-48 object-cover rounded-2xl shadow-md shrink-0" />
-                        ) : null}
+                        <div className="shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePost(post.id)}
+                            className={`p-2.5 rounded-xl border transition-all ${
+                              isDark
+                                ? 'bg-rose-500/10 border-rose-500/20 text-rose-450 hover:bg-rose-500/20 hover:border-rose-500/30'
+                                : 'bg-slate-50 border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-200'
+                            }`}
+                            title="Delete post"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
