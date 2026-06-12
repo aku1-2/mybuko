@@ -7,7 +7,7 @@ import {
   Plus, Settings, LogOut, User, Search, Filter, ChevronDown, Check, Trash2, 
   Info, CalendarDays, DollarSign, MapPin, Target, Clock, TrendingUp, 
   MessageSquare, Flame, Sparkles, Award, Play, CheckCircle, Calendar, 
-  ChevronRight, ArrowRight, ArrowUpRight, Compass, ShieldAlert, Layers, 
+  ChevronLeft, ChevronRight, ArrowRight, ArrowUpRight, Compass, ShieldAlert, Layers, 
   PlusCircle, BookOpen, Activity, Lock, Eye, Bell, Globe, Sun, Moon
 } from 'lucide-react'
 import { useTheme } from '../theme-provider'
@@ -40,6 +40,75 @@ const formatRealTime = (dateVal: any) => {
   })
 }
 
+function DashboardPostCarousel({ imageSource }: { imageSource: string }) {
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  let images: string[] = []
+  if (imageSource) {
+    if (imageSource.startsWith('[')) {
+      try {
+        images = JSON.parse(imageSource)
+      } catch (e) {
+        images = [imageSource]
+      }
+    } else {
+      images = [imageSource]
+    }
+  }
+
+  if (images.length === 0) return null
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setActiveIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
+  }
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setActiveIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))
+  }
+
+  return (
+    <div className="relative h-32 w-full sm:w-48 overflow-hidden rounded-2xl shadow-md shrink-0 group bg-slate-950/35 flex items-center justify-center">
+      <img 
+        src={images[activeIndex]} 
+        className="w-full h-full object-cover" 
+        alt={`Post visual ${activeIndex + 1}`} 
+      />
+
+      {images.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={handlePrev}
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover:opacity-100 transition duration-300 z-10 cursor-pointer"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleNext}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover:opacity-100 transition duration-300 z-10 cursor-pointer"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Dots */}
+          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1 z-10 bg-black/30 px-2 py-0.5 rounded-full">
+            {images.map((_, idx) => (
+              <div
+                key={idx}
+                className={`w-1 h-1 rounded-full transition-all ${
+                  idx === activeIndex ? 'bg-white' : 'bg-white/40'
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -830,7 +899,7 @@ export default function DashboardPage() {
             </Link>
 
             {/* Quick Actions Search Bar */}
-            <div className="hidden md:flex flex-1 max-w-md mx-8">
+            <div className="hidden md:flex flex-1 max-w-md mx-8 relative">
               <div className="relative w-full">
                 <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4.5 h-4.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                 <input
@@ -845,6 +914,54 @@ export default function DashboardPage() {
                   }`}
                 />
               </div>
+
+              {/* Suggestions Dropdown */}
+              {searchTerm.trim() !== '' && (
+                <div className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border p-2 shadow-2xl z-50 backdrop-blur-xl ${
+                  isDark 
+                    ? 'bg-slate-900/90 border-white/10 text-slate-100 shadow-[0_10px_30px_rgba(0,0,0,0.5)]' 
+                    : 'bg-white/95 border-slate-200 text-slate-900 shadow-[0_10px_30px_rgba(0,0,0,0.1)]'
+                }`}>
+                  <div className="max-h-60 overflow-y-auto space-y-1 scrollbar-hide">
+                    {goals.filter(goal => 
+                      goal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      (goal.category && goal.category.toLowerCase().includes(searchTerm.toLowerCase()))
+                    ).length === 0 ? (
+                      <p className="text-xs text-slate-500 italic p-3 text-center">No goals match search query</p>
+                    ) : (
+                      goals.filter(goal => 
+                        goal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (goal.category && goal.category.toLowerCase().includes(searchTerm.toLowerCase()))
+                      ).map(goal => (
+                        <button
+                          key={goal.id}
+                          onClick={() => {
+                            setSearchTerm('')
+                            setActiveTab('goals')
+                            setFilterCategory('All')
+                            setOpenInfoId(goal.id)
+                            setTimeout(() => {
+                              const el = document.getElementById(`goal-${goal.id}`)
+                              if (el) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                              }
+                            }, 150)
+                          }}
+                          className={`w-full text-left px-4 py-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                            isDark ? 'hover:bg-white/5 text-slate-200' : 'hover:bg-slate-105 text-slate-800'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold truncate">{goal.title}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">{goal.category} • {goal.status}</p>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-2" />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* User Dropdown with level stats */}
@@ -1185,6 +1302,54 @@ export default function DashboardPage() {
                       : 'bg-slate-100 border-slate-200 text-slate-900 placeholder-slate-450'
                   }`}
                 />
+
+                {/* Suggestions Dropdown for mobile */}
+                {searchTerm.trim() !== '' && (
+                  <div className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border p-2 shadow-2xl z-50 backdrop-blur-xl ${
+                    isDark 
+                      ? 'bg-slate-900/90 border-white/10 text-slate-100 shadow-[0_10px_30px_rgba(0,0,0,0.5)]' 
+                      : 'bg-white/95 border-slate-200 text-slate-900 shadow-[0_10px_30px_rgba(0,0,0,0.1)]'
+                  }`}>
+                    <div className="max-h-60 overflow-y-auto space-y-1 scrollbar-hide">
+                      {goals.filter(goal => 
+                        goal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (goal.category && goal.category.toLowerCase().includes(searchTerm.toLowerCase()))
+                      ).length === 0 ? (
+                        <p className="text-xs text-slate-500 italic p-3 text-center">No goals match search query</p>
+                      ) : (
+                        goals.filter(goal => 
+                          goal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (goal.category && goal.category.toLowerCase().includes(searchTerm.toLowerCase()))
+                        ).map(goal => (
+                          <button
+                            key={goal.id}
+                            onClick={() => {
+                              setSearchTerm('')
+                              setActiveTab('goals')
+                              setFilterCategory('All')
+                              setOpenInfoId(goal.id)
+                              setTimeout(() => {
+                                const el = document.getElementById(`goal-${goal.id}`)
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                }
+                              }, 150)
+                            }}
+                            className={`w-full text-left px-4 py-2.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                              isDark ? 'hover:bg-white/5 text-slate-200' : 'hover:bg-slate-105 text-slate-800'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold truncate">{goal.title}</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">{goal.category} • {goal.status}</p>
+                            </div>
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-2" />
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1261,6 +1426,7 @@ export default function DashboardPage() {
                       return (
                         <div
                           key={goal.id}
+                          id={`goal-${goal.id}`}
                           className={`rounded-3xl border transition-all duration-300 p-6 shadow-xl ${
                             isExpanded 
                               ? isDark 
@@ -1626,11 +1792,7 @@ export default function DashboardPage() {
                     }`}>
                       <div className="flex flex-col sm:flex-row sm:items-start gap-6">
                         {post.image ? (
-                          <img 
-                            src={post.image} 
-                            alt="Post visual" 
-                            className="h-32 w-full sm:w-48 object-cover rounded-2xl shadow-md shrink-0" 
-                          />
+                          <DashboardPostCarousel imageSource={post.image} />
                         ) : null}
                         <div className="flex-1 space-y-3 min-w-0">
                           <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{post.author}</h3>

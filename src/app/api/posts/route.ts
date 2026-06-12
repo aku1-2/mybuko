@@ -46,6 +46,18 @@ export async function GET(req: NextRequest) {
       }
     })
 
+    // Increment views for all these posts
+    if (posts.length > 0) {
+      try {
+        await prisma.post.updateMany({
+          where: { id: { in: posts.map(p => p.id) } },
+          data: { views: { increment: 1 } }
+        })
+      } catch (viewErr) {
+        console.error('Failed to increment post views:', viewErr)
+      }
+    }
+
     return NextResponse.json({ posts })
   } catch (err) {
     console.error('Fetch posts error:', err)

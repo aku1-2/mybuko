@@ -390,7 +390,7 @@ export default function StoriesBar() {
                             {/* Bottom Interactivity Drawer */}
                             <div className="p-4 bg-slate-900 border-t border-white/5 space-y-4 shrink-0 z-20">
                                 
-                                {/* Likes & Comments stats row */}
+                                {/* Likes stats row */}
                                 <div className="flex items-center justify-between text-xs text-slate-350">
                                     <div className="flex items-center gap-4">
                                         <button 
@@ -404,24 +404,8 @@ export default function StoriesBar() {
                                             }`} />
                                             <span className="font-bold">{currentStory.likes.length}</span>
                                         </button>
-                                        <div className="flex items-center gap-1.5">
-                                            <MessageCircle className="w-4 h-4" />
-                                            <span className="font-bold">{currentStory.comments.length}</span>
-                                        </div>
                                     </div>
                                 </div>
-
-                                {/* Comments Thread Section */}
-                                {currentStory.comments.length > 0 && (
-                                    <div className="max-h-24 overflow-y-auto space-y-2.5 pr-1 border-t border-white/5 pt-3 scrollbar-hide">
-                                        {currentStory.comments.map(c => (
-                                            <div key={c.id} className="text-[11px] leading-relaxed">
-                                                <span className="font-extrabold text-white mr-1.5">{c.user.name}:</span>
-                                                <span className="text-slate-300 font-medium">{c.content}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
 
                                 {/* Comment Reply Input Box */}
                                 <div className="flex gap-2.5 items-center">

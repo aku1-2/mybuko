@@ -82,8 +82,8 @@ export default function LoginPage() {
       if (res.ok) {
         localStorage.setItem('token', data.token)
         localStorage.setItem('user', JSON.stringify(data.user))
-        document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}`
-        router.push('/dashboard')
+        document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax; Secure`
+        window.location.href = '/dashboard'
       } else {
         setError(data.error || 'Login failed')
       }

@@ -97,6 +97,25 @@ const POPULAR_EMOJIS = [
   '🙌', '👌', '⚡', '💡', '🏆', '🎯', '📍', '🗺️'
 ]
 
+const renderMessageText = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  const parts = text.split(urlRegex)
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      return (
+        <a 
+          key={i} 
+          href={part} 
+          className="underline text-cyan-400 dark:text-cyan-300 hover:opacity-85 break-all font-bold"
+        >
+          {part}
+        </a>
+      )
+    }
+    return part
+  })
+}
+
 export default function ChatRoomPage() {
   const { theme } = useTheme()
   const isGlobalDark = theme === 'dark'
@@ -622,7 +641,7 @@ export default function ChatRoomPage() {
                         ) : (
                           <>
                             {/* Text content */}
-                            {m.text && <p className="text-xs leading-relaxed whitespace-pre-wrap">{m.text}</p>}
+                            {m.text && <p className="text-xs leading-relaxed whitespace-pre-wrap">{renderMessageText(m.text)}</p>}
 
                             {/* Rich media attachments */}
                             {m.fileUrl && (

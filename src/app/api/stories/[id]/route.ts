@@ -67,15 +67,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const story = await prisma.story.findUnique({ where: { id: storyId } })
         if (!story) return NextResponse.json({ error: 'Story not found' }, { status: 404 })
 
-        // Create StoryComment in DB so it shows up in stories viewer list
-        await prisma.storyComment.create({
-            data: {
-                storyId,
-                userId: user.userId,
-                content
-            }
-        })
-
+        // Do NOT create StoryComment in DB so comments do not show up publicly on the story.
+        // Direct replies go to the person's DM only.
+        
         // Find or create direct chat between commenter and story owner
         if (user.userId === story.userId) {
             return NextResponse.json({ success: true, selfComment: true })
@@ -130,7 +124,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             data: {
                 chatId: chat.id,
                 senderId: user.userId,
-                text: `Story Comment: "${content}"`
+                text: `Reply to story: "${content}"`,
+                fileUrl: story.mediaUrl,
+                fileType: story.mediaType
             }
         })
 

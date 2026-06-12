@@ -6,9 +6,86 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
   Heart, Send, Camera, TrendingUp, Trophy, Users, MessageSquare, 
-  Sparkles, Award, Zap, Eye, Hash, Shield, X, Check
+  Sparkles, Award, Zap, Eye, Hash, Shield, X, Check,
+  ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+
+function PostCarousel({ imageSource }: { imageSource: string }) {
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  let images: string[] = []
+  if (imageSource) {
+    if (imageSource.startsWith('[')) {
+      try {
+        images = JSON.parse(imageSource)
+      } catch (e) {
+        images = [imageSource]
+      }
+    } else {
+      images = [imageSource]
+    }
+  }
+
+  if (images.length === 0) return null
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setActiveIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
+  }
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setActiveIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))
+  }
+
+  return (
+    <div className="relative w-full max-h-[500px] overflow-hidden border-y border-slate-100 dark:border-white/5 bg-slate-950/30 flex flex-col items-center justify-center group">
+      {/* Image container */}
+      <div className="w-full h-[320px] sm:h-[420px] flex items-center justify-center bg-black/40">
+        <img 
+          src={images[activeIndex]} 
+          className="max-w-full max-h-full object-contain" 
+          alt={`Post visual ${activeIndex + 1}`} 
+        />
+      </div>
+
+      {/* Navigation arrows (only show if multiple images) */}
+      {images.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={handlePrev}
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover:opacity-100 transition duration-300 z-10 cursor-pointer"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleNext}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover:opacity-100 transition duration-300 z-10 cursor-pointer"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </>
+      )}
+
+      {/* Dot Indicators */}
+      {images.length > 1 && (
+        <div className="absolute bottom-4 flex gap-1.5 z-10 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-xs">
+          {images.map((_, idx) => (
+            <div
+              key={idx}
+              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                idx === activeIndex ? 'bg-white scale-120' : 'bg-white/40'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 type Comment = {
   id: number | string
@@ -96,12 +173,13 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
   const [currentUserEmailState, setCurrentUserEmailState] = useState('')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [text, setText] = useState('')
-  const [image, setImage] = useState('')
-  const [imageName, setImageName] = useState('')
+  const [images, setImages] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [goalJoined, setGoalJoined] = useState(false)
   const [activeCommentPost, setActiveCommentPost] = useState<string | number | null>(null)
   const [following, setFollowing] = useState<Record<string, boolean>>({})
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
+  const [commentDrafts, setCommentDrafts] = useState<Record<string | number, string>>({})
   const [publicGoals, setPublicGoals] = useState<PublicGoal[]>([])
   const [publicGoalsLoading, setPublicGoalsLoading] = useState(true)
   const [publicGoalsError, setPublicGoalsError] = useState('')
@@ -207,7 +285,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
           date: p.createdAt,
           likes: p.likes?.length || 0,
           liked: p.likes?.some((l: any) => l.userId === currentUserId) || false,
-          views: (p.likes?.length || 0) * 11 + p.text.length + 15,
+          views: p.views || 0,
           comments: (p.comments || []).map((c: any) => ({
             id: c.id,
             author: c.user?.name || 'Dream Builder',
@@ -369,6 +447,28 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
   }, [isLoggedIn])
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const postIdParam = params.get('postId')
+      if (postIdParam) {
+        setSelectedPostId(postIdParam)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedPostId && posts.length > 0) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`post-${selectedPostId}`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 600)
+      return () => clearTimeout(timer)
+    }
+  }, [selectedPostId, posts])
+
+  useEffect(() => {
     setIsMounted(true)
     if (typeof window === 'undefined') return
 
@@ -500,14 +600,13 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
         },
         body: JSON.stringify({
           text: text.trim(),
-          image: image || null
+          image: images.length > 0 ? JSON.stringify(images) : null
         })
       })
 
       if (res.ok) {
         setText('')
-        setImage('')
-        setImageName('')
+        setImages([])
         setSubmitted(true)
         window.setTimeout(() => setSubmitted(false), 2600)
         fetchPosts()
@@ -521,21 +620,25 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
   }
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) {
-      setImage('')
-      setImageName('')
-      return
-    }
+    const files = event.target.files
+    if (!files || files.length === 0) return
 
-    setImageName(file.name)
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setImage(reader.result)
-      }
-    }
-    reader.readAsDataURL(file)
+    const readFiles: Promise<string>[] = Array.from(files).map((file) => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result)
+          }
+        }
+        reader.readAsDataURL(file)
+      })
+    })
+
+    Promise.all(readFiles).then((results) => {
+      setImages((prev) => [...prev, ...results])
+    })
+    event.target.value = ''
   }
 
   const toggleLike = async (id: string | number) => {
@@ -594,7 +697,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
             Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({
-            text: `Community Share: Check out this post from ${sharingPost.author}:\n\n"${sharingPost.text.slice(0, 100)}..."`
+            text: `Community Share: Check out this post from ${sharingPost.author}:\n\n"${sharingPost.text.slice(0, 100)}..."\n\nLink: ${window.location.origin}/explore?postId=${sharingPost.id}`
           })
         })
 
@@ -785,26 +888,31 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
                 />
               </div>
 
-              {image && (
-                <div className="relative rounded-2xl overflow-hidden bg-slate-100 dark:bg-white/5 p-1">
-                  <img src={image} className="max-h-48 w-full object-cover rounded-xl" alt="upload preview" />
-                  <button 
-                    type="button" 
-                    onClick={() => { setImage(''); setImageName('') }}
-                    className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+              {images.length > 0 && (
+                <div className="flex flex-wrap gap-2.5 p-1">
+                  {images.map((img, index) => (
+                    <div key={index} className="relative w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 shrink-0">
+                      <img src={img} className="w-full h-full object-cover" alt={`preview ${index}`} />
+                      <button 
+                        type="button" 
+                        onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== index))}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition duration-200 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
 
               <div className="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-white/5">
                 <label className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-500 cursor-pointer transition">
                   <Camera className="w-4 h-4" />
-                  <span>Attach Image</span>
+                  <span>Attach Photos</span>
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleImageUpload}
                     className="hidden"
                   />
@@ -903,65 +1011,70 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6">
-                {visiblePosts.map(post => (
-                  <motion.article 
-                    whileHover={{ y: -2 }}
-                    key={post.id}
-                    className="rounded-[2.5rem] border border-slate-200/60 dark:border-white/5 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-sm overflow-hidden"
-                  >
-                    {/* Header info */}
-                    <div className="p-6 pb-4 flex justify-between items-start gap-4">
-                      <div 
-                        onClick={() => handleUserClick(post.authorEmail)}
-                        className="flex items-center gap-3 cursor-pointer"
-                      >
-                        {post.profileImage ? (
-                          <img src={post.profileImage} className="w-11 h-11 rounded-full object-cover border border-white/10" alt="avatar" />
-                        ) : (
-                          <div className="w-11 h-11 rounded-full bg-slate-850 flex items-center justify-center text-white font-black">
-                            {post.author[0]}
+                {visiblePosts.map(post => {
+                  const isHighlighted = selectedPostId === String(post.id)
+                  return (
+                    <motion.article 
+                      whileHover={{ y: -2 }}
+                      key={post.id}
+                      id={`post-${post.id}`}
+                      className={`rounded-[2.5rem] border transition-all duration-300 overflow-hidden ${
+                        isHighlighted 
+                          ? 'ring-4 ring-violet-500/80 border-violet-500 shadow-[0_0_25px_rgba(124,58,237,0.5)] bg-slate-900/40' 
+                          : 'border-slate-200/60 dark:border-white/5 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-sm'
+                      }`}
+                    >
+                      {/* Header info */}
+                      <div className="p-6 pb-4 flex justify-between items-start gap-4">
+                        <div 
+                          onClick={() => handleUserClick(post.authorEmail)}
+                          className="flex items-center gap-3 cursor-pointer"
+                        >
+                          {post.profileImage ? (
+                            <img src={post.profileImage} className="w-11 h-11 rounded-full object-cover border border-white/10" alt="avatar" />
+                          ) : (
+                            <div className="w-11 h-11 rounded-full bg-slate-850 flex items-center justify-center text-white font-black">
+                              {post.author[0]}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-extrabold text-slate-900 dark:text-white hover:underline">{post.author}</p>
+                            <p className="text-[10px] text-slate-400 font-semibold">{post.role} • {formatPostDate(post.date)}</p>
                           </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-extrabold text-slate-900 dark:text-white hover:underline">{post.author}</p>
-                          <p className="text-[10px] text-slate-400 font-semibold">{post.role} • {formatPostDate(post.date)}</p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          {post.authorEmail && post.authorEmail !== currentUserEmailState && (
+                            <button
+                              onClick={() => handleMessageClick(post.authorEmail)}
+                              className="p-2 rounded-full border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 transition"
+                              title="Direct Message"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => toggleFollow(post)}
+                            className={`px-4 py-1.5 rounded-full border text-[10px] font-black uppercase transition ${
+                              following[post.authorEmail || ''] || following[post.author]
+                                ? 'bg-violet-600 border-violet-600 text-white'
+                                : 'border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-white/5'
+                            }`}
+                          >
+                            {following[post.authorEmail || ''] || following[post.author] ? 'Following' : 'Follow'}
+                          </button>
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
-                        {post.authorEmail && post.authorEmail !== currentUserEmailState && (
-                          <button
-                            onClick={() => handleMessageClick(post.authorEmail)}
-                            className="p-2 rounded-full border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 transition"
-                            title="Direct Message"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => toggleFollow(post)}
-                          className={`px-4 py-1.5 rounded-full border text-[10px] font-black uppercase transition ${
-                            following[post.authorEmail || ''] || following[post.author]
-                              ? 'bg-violet-600 border-violet-600 text-white'
-                              : 'border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-white/5'
-                          }`}
-                        >
-                          {following[post.authorEmail || ''] || following[post.author] ? 'Following' : 'Follow'}
-                        </button>
+                      {/* Text description */}
+                      <div className="px-6 pb-4">
+                        <p className="text-xs leading-relaxed text-slate-750 dark:text-slate-300">{post.text}</p>
                       </div>
-                    </div>
 
-                    {/* Text description */}
-                    <div className="px-6 pb-4">
-                      <p className="text-xs leading-relaxed text-slate-750 dark:text-slate-300">{post.text}</p>
-                    </div>
-
-                    {/* Post Image */}
-                    {post.image && (
-                      <div className="max-h-[500px] overflow-hidden border-y border-slate-100 dark:border-white/5 bg-slate-950/30 flex items-center justify-center">
-                        <img src={post.image} className="w-full max-h-[500px] object-contain" alt="Post visual" />
-                      </div>
-                    )}
+                      {/* Post Image Carousel */}
+                      {post.image && (
+                        <PostCarousel imageSource={post.image} />
+                      )}
 
                     {/* Card Actions bar - ONLY heart like, comment, views count, share */}
                     <div className="px-6 py-4 flex justify-between items-center border-t border-slate-100 dark:border-white/5 text-xs text-slate-400 font-semibold bg-slate-50/20 dark:bg-slate-950/20">
@@ -1042,7 +1155,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
                     </AnimatePresence>
 
                   </motion.article>
-                ))}
+                )})}
               </div>
             )}
           </div>
