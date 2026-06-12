@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { X } from 'lucide-react'
 
 type Notification = {
@@ -16,7 +16,36 @@ type Notification = {
 export default function NotificationToastListener() {
   const [toasts, setToasts] = useState<Notification[]>([])
   const [followingIds, setFollowingIds] = useState<string[]>([])
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const toastsRef = useRef<Notification[]>([])
+
+  // Keep the ref updated with the latest toasts state to avoid stale closure issues
+  useEffect(() => {
+    toastsRef.current = toasts
+  }, [toasts])
+
+  const fetchFollowing = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+    const token = localStorage.getItem('token')
+    const userRaw = localStorage.getItem('user')
+    if (!token || !userRaw) return
+
+    try {
+      const parsed = JSON.parse(userRaw)
+      const res = await fetch(`/api/users/${parsed.id}/following`)
+      if (res.ok) {
+        const data = await res.json()
+        const list = data.following || []
+        setFollowingIds(list.map((u: any) => u.id))
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch following list:', err.message || err)
+    }
+  }
+
+  // Fetch following list once on mount
+  useEffect(() => {
+    fetchFollowing()
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -24,53 +53,12 @@ export default function NotificationToastListener() {
     const controller = new AbortController()
     const { signal } = controller
 
-    // Set up local state for current user id when available
-    const initUser = () => {
-      const userRaw = localStorage.getItem('user')
-      if (userRaw) {
-        try {
-          const parsed = JSON.parse(userRaw)
-          if (parsed && parsed.id) {
-            setCurrentUserId(parsed.id)
-          }
-        } catch (e) {
-          console.error(e)
-        }
-      }
-    }
-
-    initUser()
-
-    const fetchFollowing = async () => {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) return
-      const token = localStorage.getItem('token')
-      const userRaw = localStorage.getItem('user')
-      if (!token || !userRaw) return
-
-      try {
-        const parsed = JSON.parse(userRaw)
-        const res = await fetch(`/api/users/${parsed.id}/following`, { signal })
-        if (res.ok) {
-          const data = await res.json()
-          const list = data.following || []
-          setFollowingIds(list.map((u: any) => u.id))
-        }
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          console.warn('Failed to fetch following list:', err.message || err)
-        }
-      }
-    }
-
     // Check notifications periodically
     const checkNotifications = async () => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) return
       const token = localStorage.getItem('token')
       const userRaw = localStorage.getItem('user')
       if (!token || !userRaw) return
-
-      // Sync following list on check as well to be up-to-date
-      fetchFollowing()
 
       try {
         const res = await fetch('/api/notifications', {
@@ -97,7 +85,7 @@ export default function NotificationToastListener() {
 
         // Find notifications that haven't been shown in a toast yet
         const newNotifs = followNotifications.filter(
-          (n) => !seenIds.includes(n.id) && !toasts.some((t) => t.id === n.id)
+          (n) => !seenIds.includes(n.id) && !toastsRef.current.some((t) => t.id === n.id)
         )
 
         if (newNotifs.length > 0) {
@@ -119,13 +107,13 @@ export default function NotificationToastListener() {
 
     // Run checks
     checkNotifications()
-    const interval = setInterval(checkNotifications, 5000) // Poll every 5 seconds for quicker updates
+    const interval = setInterval(checkNotifications, 30000) // Poll every 30 seconds for optimal performance
 
     return () => {
       controller.abort()
       clearInterval(interval)
     }
-  }, [toasts])
+  }, [])
 
   const handleDismiss = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -147,7 +135,8 @@ export default function NotificationToastListener() {
       })
 
       if (followRes.ok) {
-        setFollowingIds((prev) => [...prev, notification.senderId])
+        // Refresh following list
+        await fetchFollowing()
         
         // Remove toast from state
         setToasts((prev) => prev.filter((t) => t.id !== notification.id))
