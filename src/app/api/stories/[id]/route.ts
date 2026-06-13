@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         if (!story) return NextResponse.json({ error: 'Story not found' }, { status: 404 })
 
         // Do NOT create StoryComment in DB so comments do not show up publicly on the story.
-        // Direct replies go to the person's DM only.
+        // Direct replies go to the person's messages only.
         
         // Find or create direct chat between commenter and story owner
         if (user.userId === story.userId) {

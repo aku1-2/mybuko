@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { hashPassword, createToken } from '@/lib/auth'
+import { hashPassword, generateOtp } from '@/lib/auth'
+import { sendOtpEmail } from '@/lib/email'
 
-// Email validation function
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email)
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const { name, email, password } = await request.json()
 
-    // Validation
+    // Input validation
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: 'Name, email, and password are required' },
@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Email format validation
     if (!isValidEmail(email)) {
       return NextResponse.json(
         { error: 'Please enter a valid email address' },
@@ -28,7 +27,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Name validation
     if (name.trim().length < 2) {
       return NextResponse.json(
         { error: 'Name must be at least 2 characters' },
@@ -36,7 +34,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Password validation
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters' },
@@ -44,41 +41,68 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const normalizedEmail = email.toLowerCase().trim()
+
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: normalizedEmail }
     })
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'Email already registered' },
-        { status: 400 }
-      )
+      // If user exists and is verified, block duplicate registration
+      if (existingUser.isVerified) {
+        return NextResponse.json(
+          { error: 'Email already registered' },
+          { status: 400 }
+        )
+      }
+
+      // If user exists but is NOT verified, overwrite/update registration details
+      const hashedPassword = await hashPassword(password)
+      const otp = generateOtp()
+      const otpExpiry = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
+
+      await prisma.user.update({
+        where: { email: normalizedEmail },
+        data: {
+          name: name.trim(),
+          password: hashedPassword,
+          authProvider: 'email',
+          otp,
+          otpExpiry
+        }
+      })
+
+      await sendOtpEmail(normalizedEmail, otp, 'register')
+
+      return NextResponse.json({
+        message: 'Verification OTP sent successfully',
+        email: normalizedEmail
+      })
     }
 
-    // Hash password
+    // Create a new unverified user in the database
     const hashedPassword = await hashPassword(password)
+    const otp = generateOtp()
+    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
 
-    // Create user in database
-    const user = await prisma.user.create({
+    await prisma.user.create({
       data: {
         name: name.trim(),
-        email: email.toLowerCase(),
-        password: hashedPassword
+        email: normalizedEmail,
+        password: hashedPassword,
+        isVerified: false,
+        authProvider: 'email',
+        otp,
+        otpExpiry
       }
     })
 
-    // Create token
-    const token = createToken(user.id)
+    await sendOtpEmail(normalizedEmail, otp, 'register')
 
     return NextResponse.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        createdAt: user.createdAt
-      },
-      token
+      message: 'Verification OTP sent successfully',
+      email: normalizedEmail
     })
 
   } catch (error) {

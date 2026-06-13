@@ -10,11 +10,16 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   name         String
-  password     String
+  password     String?
   bio          String?
   profileImage String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  isVerified   Boolean  @default(false)
+  authProvider String   @default("email") // "email" or "google"
+  otp          String?
+  otpExpiry    DateTime?
 
   goals            Goal[]
   stories          Story[]
@@ -144,12 +149,15 @@ model Chat {
   updatedAt DateTime @updatedAt
   participants ChatParticipant[]
   messages  Message[]
+
+  @@index([updatedAt])
 }
 
 model ChatParticipant {
   id      String @id @default(cuid())
   chatId  String
   userId  String
+  lastSeenAt DateTime @default(now())
   chat    Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 

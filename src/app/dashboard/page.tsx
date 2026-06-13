@@ -1043,7 +1043,7 @@ export default function DashboardPage() {
                           }`}
                         >
                           <MessageSquare className="w-4.5 h-4.5 text-cyan-400" />
-                          Direct Chats
+                          Messages
                         </Link>
                       </div>
 

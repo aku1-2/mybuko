@@ -1,14 +1,15 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '../../theme-provider'
 import { 
   ArrowLeft, User, Globe, Search, MessageSquare, Sparkles, 
-  Heart, Star, Bell, Plus, Settings, ShieldCheck, Zap
+  Star, Plus, ShieldCheck, Mail
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { io, Socket } from 'socket.io-client'
 
 export default function ChatsListPage() {
   const { theme } = useTheme()
@@ -23,13 +24,19 @@ export default function ChatsListPage() {
   const [initiating, setInitiating] = useState(false)
 
   // Categories and search state
-  const [activeCategory, setActiveCategory] = useState<'all' | 'unread' | 'favorites' | 'groups'>('all')
+  const [activeCategory, setActiveCategory] = useState<'all' | 'unread' | 'favorites'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
+  const socketRef = useRef<Socket | null>(null)
+
+  // Initial Data Fetching
   useEffect(() => {
     const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    if (!storedUser || !token) { router.push('/auth/login'); return }
+    if (!storedUser || !token) { 
+      router.push('/auth/login')
+      return 
+    }
     const parsed = JSON.parse(storedUser)
     setUser(parsed)
 
@@ -75,6 +82,50 @@ export default function ChatsListPage() {
 
     fetchChats()
     fetchMutuals()
+
+    // 2. Initialize WebSocket Connection
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001'
+    const socket = io(socketUrl, {
+      auth: { token }
+    })
+    socketRef.current = socket
+
+    socket.on('connect', () => {
+      console.log('Connected to WebSocket server from chat list page')
+    })
+
+    // Listen for live updates to the chat list (e.g. new messages)
+    socket.on(`chat_list_update:${parsed.id}`, ({ chatId, lastMessage, updatedAt }) => {
+      setChats(prevChats => {
+        const existingChatIdx = prevChats.findIndex(c => c.id === chatId)
+        if (existingChatIdx === -1) {
+          // If the chat isn't in the list, re-fetch list to get all participant data
+          fetchChats()
+          return prevChats
+        }
+
+        const updatedChats = [...prevChats]
+        const existingChat = updatedChats[existingChatIdx]
+
+        // Increment unreadCount if the message is from someone else
+        const isFromOther = lastMessage.senderId !== parsed.id
+        const newUnreadCount = isFromOther ? existingChat.unreadCount + 1 : existingChat.unreadCount
+
+        updatedChats[existingChatIdx] = {
+          ...existingChat,
+          lastMessage,
+          updatedAt,
+          unreadCount: newUnreadCount
+        }
+
+        // Re-sort chats by updatedAt desc
+        return updatedChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      })
+    })
+
+    return () => {
+      if (socket) socket.disconnect()
+    }
   }, [router])
 
   const handleStartChat = async (participantId: string) => {
@@ -124,33 +175,29 @@ export default function ChatsListPage() {
   // Filtered Chats computed list
   const filteredChats = chats
     .filter(chat => {
-      const other = chat.participants.find((p: any) => p.userId !== user.id)?.user
+      const other = chat.otherParticipant
       if (!other) return false
       const nameMatch = other.name.toLowerCase().includes(searchQuery.toLowerCase())
       const emailMatch = other.email.toLowerCase().includes(searchQuery.toLowerCase())
       
       // Match tabs categories
       if (activeCategory === 'unread') {
-        // Mocking unread status check (e.g. if chat contains unread count)
-        return (nameMatch || emailMatch) && chat.id.charCodeAt(0) % 2 === 0
+        return (nameMatch || emailMatch) && chat.unreadCount > 0
       }
       if (activeCategory === 'favorites') {
-        return (nameMatch || emailMatch) && chat.id.charCodeAt(0) % 3 === 0
-      }
-      if (activeCategory === 'groups') {
-        return false // Single DM hub model primarily
+        // Mocking favorites by custom user star settings or odd IDs
+        return (nameMatch || emailMatch) && chat.id.charCodeAt(0) % 2 === 0
       }
       return nameMatch || emailMatch
     })
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-500 ${
-      isDark ? 'bg-[#030712] text-slate-100' : 'bg-slate-50 text-slate-900'
+      isDark ? 'bg-[#030712] text-slate-100' : 'bg-slate-55 text-slate-900'
     }`}>
       
       {/* Background Noise Overlay */}
       <div className="absolute inset-0 noise-overlay pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-grid-pattern pointer-events-none z-0" />
 
       {/* Main Split Screen container */}
       <div className="max-w-7xl mx-auto px-4 py-6 h-[95vh] relative z-10 flex gap-6">
@@ -170,7 +217,7 @@ export default function ChatsListPage() {
                   href="/dashboard"
                   className={`p-2.5 rounded-full border transition-all ${
                     isDark 
-                      ? 'bg-slate-900 border-white/5 text-slate-350 hover:bg-slate-800' 
+                      ? 'bg-slate-900 border-white/5 text-slate-355 hover:bg-slate-800' 
                       : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
                   }`}
                   title="Back to Dashboard"
@@ -178,10 +225,10 @@ export default function ChatsListPage() {
                   <ArrowLeft className="w-4 h-4" />
                 </Link>
                 <div>
-                  <h1 className="text-lg font-black tracking-tight leading-none">Chats</h1>
+                  <h1 className="text-lg font-black tracking-tight leading-none text-white dark:text-white">Messages</h1>
                   <span className="text-[10px] text-emerald-500 font-extrabold uppercase tracking-widest flex items-center gap-1.5 mt-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    Online Hub
+                    Inbox
                   </span>
                 </div>
               </div>
@@ -203,7 +250,7 @@ export default function ChatsListPage() {
             <div className={`relative flex items-center rounded-2xl border px-3 py-2.5 ${
               isDark ? 'bg-slate-950/65 border-white/5' : 'bg-slate-100 border-slate-200'
             }`}>
-              <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+              <Search className="w-4 h-4 text-slate-500 mr-2 shrink-0" />
               <input
                 type="text"
                 value={searchQuery}
@@ -217,8 +264,8 @@ export default function ChatsListPage() {
             </div>
             
             {/* Category tabs filters */}
-            <div className="flex gap-1 bg-slate-100/50 dark:bg-slate-950/40 p-1 rounded-xl relative overflow-hidden">
-              {(['all', 'unread', 'favorites', 'groups'] as const).map(tab => {
+            <div className="flex gap-1 bg-slate-105/50 dark:bg-slate-950/40 p-1 rounded-xl relative overflow-hidden">
+              {(['all', 'unread', 'favorites'] as const).map(tab => {
                 const isActive = activeCategory === tab
                 return (
                   <button
@@ -226,7 +273,7 @@ export default function ChatsListPage() {
                     onClick={() => setActiveCategory(tab)}
                     className="flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all relative z-10 text-center"
                   >
-                    <span className={isActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400 hover:text-slate-200'}>
+                    <span className={isActive ? 'text-violet-650 dark:text-violet-400 font-bold' : 'text-slate-400 hover:text-slate-200'}>
                       {tab}
                     </span>
                     {isActive && (
@@ -245,22 +292,33 @@ export default function ChatsListPage() {
           {/* Chats list area */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-hide">
             {chatsLoading ? (
-              <div className="py-20 flex flex-col items-center justify-center space-y-3">
-                <div className="w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs text-slate-500">Retrieving chats...</p>
+              // Gradient Skeleton Shimmers
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="p-3.5 rounded-2xl border dark:border-white/5 bg-[#0f1423]/25 flex items-center justify-between animate-pulse">
+                    <div className="flex items-center gap-3 w-3/4">
+                      <div className="w-10 h-10 rounded-full bg-slate-800" />
+                      <div className="space-y-2 flex-1">
+                        <div className="h-3 bg-slate-850 rounded w-1/2" />
+                        <div className="h-2.5 bg-slate-800 rounded w-5/6" />
+                      </div>
+                    </div>
+                    <div className="w-10 h-3 bg-slate-800 rounded" />
+                  </div>
+                ))}
               </div>
             ) : filteredChats.length === 0 ? (
               <div className="py-20 text-center space-y-2 text-xs text-slate-500 px-4">
-                <MessageSquare className="w-8 h-8 mx-auto text-slate-600 animate-pulse" />
+                <MessageSquare className="w-8 h-8 mx-auto text-slate-650 animate-pulse" />
                 <p className="font-extrabold text-slate-400">No matching conversations</p>
                 <p className="text-[10px] opacity-75">Start chats with active builders on the community feed.</p>
               </div>
             ) : (
               filteredChats.map((chat) => {
-                const other = chat.participants.find((p: any) => p.userId !== user.id)?.user
-                const last = chat.messages?.[0]
-                const isUnread = chat.id.charCodeAt(0) % 2 === 0 // Mocking unread status dynamically
-                const isFavorite = chat.id.charCodeAt(0) % 3 === 0
+                const other = chat.otherParticipant
+                const last = chat.lastMessage
+                const isUnread = chat.unreadCount > 0
+                const isFavorite = chat.id.charCodeAt(0) % 2 === 0
                 
                 return (
                   <motion.div
@@ -279,7 +337,7 @@ export default function ChatsListPage() {
                         {other?.profileImage ? (
                           <img src={other.profileImage} className="w-10 h-10 rounded-full object-cover border border-white/10" alt="avatar" />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center text-white font-black text-xs">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-violet-650 to-indigo-500 flex items-center justify-center text-white font-black text-xs">
                             {other?.name.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -298,7 +356,7 @@ export default function ChatsListPage() {
                         <p className={`text-[11px] truncate leading-normal mt-0.5 ${
                           isUnread ? 'font-black text-indigo-400' : 'text-slate-400'
                         }`}>
-                          {last?.text ? last.text : 'No messages shared yet'}
+                          {last?.text ? last.text : last?.fileUrl ? 'Sent a file attachment' : 'No messages shared yet'}
                         </p>
                       </div>
                     </div>
@@ -308,8 +366,8 @@ export default function ChatsListPage() {
                         {last ? new Date(last.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
                       {isUnread && (
-                        <span className="h-4 min-w-[16px] px-1 rounded-full bg-indigo-600 text-[8px] font-black text-white flex items-center justify-center animate-pulse">
-                          1
+                        <span className="h-4 min-w-[16px] px-1 rounded-full bg-indigo-650 text-[8px] font-black text-white flex items-center justify-center animate-pulse">
+                          {chat.unreadCount}
                         </span>
                       )}
                     </div>
@@ -330,13 +388,13 @@ export default function ChatsListPage() {
             
             {/* Empty State Vector/SVG Icon placeholder */}
             <div className="w-16 h-16 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-indigo-400 shadow-xl mb-2">
-              <MessageSquare className="w-8 h-8 animate-bounce-short" />
+              <MessageSquare className="w-8 h-8" />
             </div>
 
             <h2 className="text-2xl font-black tracking-tight leading-none text-white font-display">
               Your conversations start here.
             </h2>
-            <p className="text-xs text-slate-450 leading-relaxed max-w-sm">
+            <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
               Connect with fellow builders to trade daily milestones, progress notebook updates, and keep your goals streak active.
             </p>
 
@@ -353,7 +411,7 @@ export default function ChatsListPage() {
                 </div>
               ) : mutualFollowers.length > 0 ? (
                 <div className="space-y-3 text-left">
-                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-450 mb-1 flex items-center gap-1.5">
+                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-violet-400" />
                     Mutual Followers
                   </p>
@@ -365,7 +423,7 @@ export default function ChatsListPage() {
                         onClick={() => handleStartChat(contact.id)}
                         className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all ${
                           initiating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5 hover:-translate-y-0.5'
-                        } bg-slate-950/40 border-white/5 text-slate-200`}
+                        } bg-slate-950/40 border-white/5 text-slate-200 cursor-pointer`}
                       >
                         <div className="w-8 h-8 bg-gradient-to-tr from-violet-600 to-indigo-500 rounded-full flex items-center justify-center text-white font-black text-xs">
                           {contact.name.charAt(0).toUpperCase()}
@@ -383,7 +441,7 @@ export default function ChatsListPage() {
                   <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex gap-3 items-start text-left">
                     <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0" />
                     <p className="text-[11px] text-slate-400 leading-normal">
-                      Dream Chats require mutual follows to unlock. Check out the community spotlights to follow peers.
+                      Chats require mutual follows to unlock. Check out the community spotlights to follow peers.
                     </p>
                   </div>
                   

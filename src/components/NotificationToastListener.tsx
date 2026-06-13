@@ -176,7 +176,7 @@ export default function NotificationToastListener() {
             key={notif.id}
             className="pointer-events-auto flex items-center justify-between w-full rounded-xl bg-white p-3.5 shadow-xl ring-1 ring-black/10 dark:bg-slate-900 dark:ring-white/15 border border-slate-100 dark:border-slate-800 transition-all duration-300 animate-slide-in"
           >
-            {/* Instagram Style Layout */}
+            {/* Layout */}
             <div className="flex items-center gap-3 flex-1 min-w-0">
               {/* Profile Avatar Circle */}
               <div className="h-11 w-11 shrink-0 rounded-full bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-600 p-[2px]">
@@ -197,7 +197,7 @@ export default function NotificationToastListener() {
               </div>
             </div>
 
-            {/* Action buttons on the right, like Instagram */}
+            {/* Action buttons on the right */}
             <div className="flex items-center gap-2 shrink-0 ml-3">
               {!isAlreadyFollowing ? (
                 <button

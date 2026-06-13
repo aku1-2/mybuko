@@ -26,3 +26,8 @@ export function verifyToken(token: string) {
     return null
   }
 }
+
+export function generateOtp(): string {
+  const crypto = require('crypto')
+  return crypto.randomInt(100000, 999999).toString()
+}

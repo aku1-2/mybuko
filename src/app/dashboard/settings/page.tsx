@@ -643,7 +643,7 @@ export default function SettingsPage() {
                           { id: 'goalReminders', label: 'Goal Reminders', desc: 'Get reminded about active goals reaching target deadlines', state: notificationToggles.goalReminders },
                           { id: 'weeklyRecap', label: 'Weekly Summary Recap', desc: 'Receive weekly email recap summaries showing your dream progress logs', state: notificationToggles.weeklyRecap },
                           { id: 'milestoneAlerts', label: 'Milestone Completion Alerts', desc: 'Be notified dynamically when achieving goal key steps', state: notificationToggles.milestoneAlerts },
-                          { id: 'communityActivity', label: 'Community & Chat Alerts', desc: 'Get updates on direct chats, follow requests, and community posts', state: notificationToggles.communityActivity },
+                          { id: 'communityActivity', label: 'Community & Chat Alerts', desc: 'Get updates on chats, follow requests, and community posts', state: notificationToggles.communityActivity },
                           { id: 'achievementUnlocks', label: 'Achievement Badge Unlocks', desc: 'Alert when locking premium badges on your profile page', state: notificationToggles.achievementUnlocks }
                         ].map((item) => (
                           <div 

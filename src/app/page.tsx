@@ -276,7 +276,7 @@ export default function LandingPage() {
                                                         onClick={() => setIsMenuOpen(false)}
                                                         className="block px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                                                     >
-                                                        Chats
+                                                        Messages
                                                     </Link>
                                                     <button
                                                         onClick={handleLogout}

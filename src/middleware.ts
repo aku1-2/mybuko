@@ -13,9 +13,10 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // If logged in and trying to access auth pages
+  // If logged in and trying to access auth pages (except Google OAuth callback)
   if (token) {
-    if (request.nextUrl.pathname.startsWith('/auth')) {
+    if (request.nextUrl.pathname.startsWith('/auth') && 
+        !request.nextUrl.pathname.startsWith('/auth/google-callback')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }

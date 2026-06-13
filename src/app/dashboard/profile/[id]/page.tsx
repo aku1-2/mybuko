@@ -77,7 +77,7 @@ export default function UserProfilePage() {
   const [modalUsersList, setModalUsersList] = useState<any[]>([])
   const [modalLoading, setModalLoading] = useState(false)
 
-  // Chat/DM alert state
+  // Chat alert state
   const [dmError, setDmError] = useState('')
   const [isInitiatingChat, setIsInitiatingChat] = useState(false)
 
@@ -482,7 +482,7 @@ export default function UserProfilePage() {
                   <Globe className="w-5 h-5 text-indigo-450" />
                   Social Directory
                 </h3>
-                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Instagram-style List</span>
+                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Connections</span>
               </div>
 
               <div className="flex items-center gap-8">

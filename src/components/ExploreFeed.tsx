@@ -1048,7 +1048,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
                             <button
                               onClick={() => handleMessageClick(post.authorEmail)}
                               className="p-2 rounded-full border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 transition"
-                              title="Direct Message"
+                              title="Open Chat"
                             >
                               <MessageSquare className="w-4 h-4" />
                             </button>
@@ -1343,7 +1343,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
                       </div>
                       <div>
                         <p className="text-xs font-bold text-white">{conn.name}</p>
-                        <p className="text-[10px] text-slate-400">Click to send in DM</p>
+                        <p className="text-[10px] text-slate-400">Click to send</p>
                       </div>
                     </button>
                   ))

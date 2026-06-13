@@ -13,46 +13,49 @@ export async function POST(req: NextRequest) {
     const { participantId } = body
     if (!participantId) return NextResponse.json({ error: 'participantId required' }, { status: 400 })
 
-    // Ensure mutual follow exists (both follow each other)
-    const mutual = await prisma.follow.findFirst({ where: { followerId: verified.userId, followingId: participantId } })
-    const mutual2 = await prisma.follow.findFirst({ where: { followerId: participantId, followingId: verified.userId } })
-    if (!mutual || !mutual2) return NextResponse.json({ error: 'Chat allowed only between mutual followers' }, { status: 403 })
+    // 1. Enforce mutual follow (both follow each other)
+    const [mutual, mutual2] = await Promise.all([
+      prisma.follow.findFirst({ where: { followerId: verified.userId, followingId: participantId } }),
+      prisma.follow.findFirst({ where: { followerId: participantId, followingId: verified.userId } })
+    ])
+    
+    if (!mutual || !mutual2) {
+      return NextResponse.json({ error: 'Chat allowed only between mutual followers' }, { status: 403 })
+    }
 
-    // Find all existing chats with both participants (to find duplicates)
-    const existingChats = await prisma.chat.findMany({
+    // 2. Find if a chat already exists between both participants
+    const existingChat = await prisma.chat.findFirst({
       where: {
         AND: [
           { participants: { some: { userId: verified.userId } } },
-          { participants: { some: { userId: participantId } } },
+          { participants: { some: { userId: participantId } } }
         ]
       },
-      include: { participants: { include: { user: true } }, messages: { orderBy: { createdAt: 'desc' } } }
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profileImage: true
+              }
+            }
+          }
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      }
     })
 
-    if (existingChats.length > 0) {
-      // Keep the one with messages (or oldest) and delete/merge the rest
-      const withMessages = existingChats.filter(c => c.messages.length > 0)
-      const targetChat = withMessages.length > 0 ? withMessages[0] : existingChats[0]
-      
-      const toDelete = existingChats.filter(c => c.id !== targetChat.id)
-      if (toDelete.length > 0) {
-        // Migrate messages if any of the duplicates had messages
-        for (const extraChat of toDelete) {
-          if (extraChat.messages.length > 0) {
-            await prisma.message.updateMany({
-              where: { chatId: extraChat.id },
-              data: { chatId: targetChat.id }
-            })
-          }
-        }
-        await prisma.chat.deleteMany({
-          where: { id: { in: toDelete.map(c => c.id) } }
-        })
-      }
-      return NextResponse.json({ chat: targetChat })
+    if (existingChat) {
+      return NextResponse.json({ chat: existingChat })
     }
 
-    // create chat and participants
+    // 3. Create chat and participants
     const chat = await prisma.chat.create({
       data: {
         participants: {
@@ -62,7 +65,21 @@ export async function POST(req: NextRequest) {
           ]
         }
       },
-      include: { participants: { include: { user: true } }, messages: true }
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profileImage: true
+              }
+            }
+          }
+        },
+        messages: true
+      }
     })
 
     return NextResponse.json({ chat })
@@ -79,87 +96,72 @@ export async function GET(req: NextRequest) {
     const verified = verifyToken(token)
     if (!verified) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Find all chats for this user
-    const chats = await prisma.chat.findMany({
-      where: { participants: { some: { userId: verified.userId } } },
+    // 1. Fetch all participants with chat details in a single query (optimized selection)
+    const participants = await prisma.chatParticipant.findMany({
+      where: { userId: verified.userId },
       include: {
-        participants: { include: { user: true } },
-        messages: { orderBy: { createdAt: 'desc' } }
-      },
-      orderBy: { updatedAt: 'desc' }
-    })
-
-    // Identify duplicates and filter out blank chats
-    const uniqueChatsMap = new Map<string, any>()
-    const chatsToDelete: string[] = []
-
-    for (const chat of chats) {
-      const otherParticipant = chat.participants.find(p => p.userId !== verified.userId)
-      if (!otherParticipant) {
-        chatsToDelete.push(chat.id)
-        continue
-      }
-
-      const key = otherParticipant.userId
-      const existing = uniqueChatsMap.get(key)
-
-      if (existing) {
-        // We have a duplicate chat for the same user!
-        const existingHasMessages = existing.messages.length > 0
-        const currentHasMessages = chat.messages.length > 0
-
-        if (currentHasMessages && !existingHasMessages) {
-          chatsToDelete.push(existing.id)
-          uniqueChatsMap.set(key, chat)
-        } else if (!currentHasMessages && existingHasMessages) {
-          chatsToDelete.push(chat.id)
-        } else {
-          if (chat.messages.length >= existing.messages.length) {
-            chatsToDelete.push(existing.id)
-            uniqueChatsMap.set(key, chat)
-          } else {
-            chatsToDelete.push(chat.id)
-          }
-        }
-      } else {
-        uniqueChatsMap.set(key, chat)
-      }
-    }
-
-    if (chatsToDelete.length > 0) {
-      // Migrate messages of duplicates before deleting
-      for (const delId of chatsToDelete) {
-        const chatToDel = chats.find(c => c.id === delId)
-        if (chatToDel && chatToDel.messages.length > 0) {
-          const otherParticipant = chatToDel.participants.find(p => p.userId !== verified.userId)
-          if (otherParticipant) {
-            const keptChat = uniqueChatsMap.get(otherParticipant.userId)
-            if (keptChat && keptChat.id !== delId) {
-              await prisma.message.updateMany({
-                where: { chatId: delId },
-                data: { chatId: keptChat.id }
-              })
-              // Merge messages in memory for sorting
-              keptChat.messages = [...keptChat.messages, ...chatToDel.messages]
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        chat: {
+          include: {
+            participants: {
+              where: { userId: { not: verified.userId } },
+              select: {
+                lastSeenAt: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    profileImage: true
+                  }
+                }
+              }
+            },
+            messages: {
+              where: {
+                NOT: { deletedFor: { contains: verified.userId } }
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1
             }
           }
         }
       }
+    })
 
-      await prisma.chat.deleteMany({
-        where: { id: { in: chatsToDelete } }
-      })
-    }
+    // 2. Fetch unread counts concurrently using Promise.all
+    const resultChats = await Promise.all(
+      participants
+        .filter(p => p.chat.messages.length > 0) // Only return active chats
+        .map(async (p) => {
+          const chat = p.chat
+          const otherParticipantRecord = chat.participants[0]
+          const otherParticipant = otherParticipantRecord?.user || null
+          const lastMessage = chat.messages[0] || null
 
-    // Now filter unique chats to only return those with messages
-    const resultChats = Array.from(uniqueChatsMap.values())
-      .filter(chat => chat.messages.length > 0)
-      .map(chat => ({
-        ...chat,
-        // Only return the last message for list view
-        messages: chat.messages.slice(0, 1)
-      }))
+          // Count messages sent by other users after the current user's lastSeenAt
+          const unreadCount = await prisma.message.count({
+            where: {
+              chatId: chat.id,
+              createdAt: { gt: p.lastSeenAt },
+              senderId: { not: verified.userId },
+              NOT: { deletedFor: { contains: verified.userId } }
+            }
+          })
+
+          return {
+            id: chat.id,
+            updatedAt: chat.updatedAt,
+            otherParticipant,
+            lastMessage,
+            unreadCount,
+            lastSeenAt: p.lastSeenAt,
+            otherLastSeenAt: otherParticipantRecord?.lastSeenAt || null
+          }
+        })
+    )
+
+    // 3. Sort by last activity (updatedAt desc)
+    resultChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
     return NextResponse.json({ chats: resultChats })
   } catch (err) {

@@ -21,12 +21,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid deleteType' }, { status: 400 })
     }
 
+    // Selective database lookup
     const message = await prisma.message.findUnique({
       where: { id: messageId },
-      include: {
+      select: {
+        id: true,
+        senderId: true,
+        chatId: true,
+        deletedFor: true,
         chat: {
-          include: {
-            participants: true
+          select: {
+            participants: {
+              select: {
+                userId: true
+              }
+            }
           }
         }
       }
@@ -55,6 +64,16 @@ export async function DELETE(
           text: 'This message was deleted',
           fileUrl: null,
           fileType: null
+        },
+        select: {
+          id: true,
+          chatId: true,
+          senderId: true,
+          text: true,
+          fileUrl: true,
+          fileType: true,
+          createdAt: true,
+          deletedForEveryone: true
         }
       })
 
@@ -68,6 +87,16 @@ export async function DELETE(
         where: { id: messageId },
         data: {
           deletedFor: newList
+        },
+        select: {
+          id: true,
+          chatId: true,
+          senderId: true,
+          text: true,
+          fileUrl: true,
+          fileType: true,
+          createdAt: true,
+          deletedForEveryone: true
         }
       })
 
