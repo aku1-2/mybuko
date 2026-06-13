@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
           data: {
             amountSaved: newSaved,
             progress: newProgress,
-            status: targetGoal.status
+            status: newProgress === 100 ? 'Completed' : targetGoal.status
           }
         })
       }

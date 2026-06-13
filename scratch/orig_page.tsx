@@ -1,14 +1,13 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { 
   ArrowLeft, Wallet, TrendingUp, Sparkles, Plus, Landmark, Scale, 
   Coins, PiggyBank, Award, MessageSquare, Flame, Loader2, RefreshCw, 
   Calculator, Percent, ShieldCheck, HelpCircle, ChevronRight, AlertTriangle,
-  ArrowUpRight, DollarSign, Briefcase, Compass, BookOpen, Activity, Info,
-  CheckCircle
+  ArrowUpRight, DollarSign, Briefcase, Compass, BookOpen, Activity, Info
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../theme-provider'
@@ -71,9 +70,6 @@ export default function FinancePlannerPage() {
   const [optimizationResult, setOptimizationResult] = useState<string>('')
   const [isOptimizing, setIsOptimizing] = useState(false)
 
-  // Filter active goals (exclude completed ones)
-  const activeGoals = useMemo(() => goals.filter(g => g.status !== 'Completed'), [goals])
-
   // Scroll ref for chat
   const chatEndRef = useRef<HTMLDivElement>(null)
 
@@ -97,99 +93,6 @@ export default function FinancePlannerPage() {
     fetchData(token)
   }, [])
 
-  const handleCompleteGoal = async (id: string, cost: number, title: string) => {
-    try {
-      const token = localStorage.getItem('token')
-      
-      // 1. Mark goal as Completed in DB
-      const res = await fetch(`/api/goals/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          status: 'Completed',
-          progress: 100,
-          amountSaved: cost
-        })
-      })
-
-      if (res.ok) {
-        // 2. Log an EXPENSE transaction to deduct the goal budget from the Dream Wallet
-        await fetch('/api/finance', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            amount: cost,
-            type: 'EXPENSE',
-            notes: `Achieved Dream: ${title} (Budget Spent)`
-          })
-        })
-
-        if (token) {
-          await fetchData(token)
-        }
-      }
-    } catch (err) {
-      console.error('Error completing goal:', err)
-    }
-  }
-
-  const estimateMissingGoalCosts = async (goalsList: any[], token: string) => {
-    let updatedAny = false
-    const updatedGoals = await Promise.all(goalsList.map(async (goal) => {
-      const budgetVal = goal.budget || 0
-      const estCostVal = goal.estimatedCost || 0
-      
-      if (budgetVal === 0 && estCostVal === 0) {
-        try {
-          const res = await fetch('/api/ai/finance-coach', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              mode: 'estimate-cost',
-              goalContext: { title: goal.title }
-            })
-          })
-
-          if (res.ok) {
-            const data = await res.json()
-            const costEst = parseFloat(data.reply) || 15000
-            
-            // Persist to DB
-            await fetch(`/api/goals/${goal.id}`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                estimatedCost: costEst
-              })
-            })
-            
-            updatedAny = true
-            return { ...goal, estimatedCost: costEst }
-          }
-        } catch (err) {
-          console.error('Failed to estimate cost for goal:', goal.title, err)
-        }
-      }
-      return goal
-    }))
-
-    if (updatedAny) {
-      setGoals(updatedGoals)
-    }
-  }
-
   const fetchData = async (token: string) => {
     setIsLoading(true)
     try {
@@ -200,12 +103,9 @@ export default function FinancePlannerPage() {
       if (goalsRes.ok) {
         const goalsData = await goalsRes.json()
         setGoals(goalsData)
-        const activeData = goalsData.filter((g: any) => g.status !== 'Completed')
-        if (activeData.length > 0) {
-          setSelectedGoalForAI(activeData[0].id)
+        if (goalsData.length > 0) {
+          setSelectedGoalForAI(goalsData[0].id)
         }
-        // Run AI estimation asynchronously for any goals with missing costs
-        estimateMissingGoalCosts(goalsData, token)
       }
 
       // Fetch user's finance profile & transactions
@@ -323,7 +223,7 @@ export default function FinancePlannerPage() {
         body: JSON.stringify({
           messages: newMessages,
           mode: 'coach',
-          goalContext: activeGoals.map(g => ({
+          goalContext: goals.map(g => ({
             title: g.title,
             budget: g.budget,
             estimatedCost: g.estimatedCost,
@@ -353,7 +253,7 @@ export default function FinancePlannerPage() {
 
   // Handle AI Goal Optimizer Recommendations
   const handleOptimizeGoal = async () => {
-    const targetGoal = activeGoals.find(g => g.id === selectedGoalForAI)
+    const targetGoal = goals.find(g => g.id === selectedGoalForAI)
     if (!targetGoal || isOptimizing) return
 
     setIsOptimizing(true)
@@ -395,22 +295,10 @@ export default function FinancePlannerPage() {
 
   // Trigger optimization on first load or selection change
   useEffect(() => {
-    if (activeGoals.length > 0 && selectedGoalForAI) {
+    if (goals.length > 0 && selectedGoalForAI) {
       handleOptimizeGoal()
     }
-  }, [selectedGoalForAI])
-
-  // Reset selectedGoalForAI if the currently selected goal gets completed/removed
-  useEffect(() => {
-    if (activeGoals.length > 0) {
-      const exists = activeGoals.some(g => g.id === selectedGoalForAI)
-      if (!exists) {
-        setSelectedGoalForAI(activeGoals[0].id)
-      }
-    } else {
-      setSelectedGoalForAI('')
-    }
-  }, [activeGoals, selectedGoalForAI])
+  }, [selectedGoalForAI, goals])
 
   // Calculation Metrics:
   const totalDreamCost = goals.reduce((sum, g) => sum + (g.budget || g.estimatedCost || 0), 0)
@@ -418,16 +306,37 @@ export default function FinancePlannerPage() {
   const remainingAmount = Math.max(0, totalDreamCost - totalSaved)
   const completionPercentage = totalDreamCost > 0 ? Math.round((totalSaved / totalDreamCost) * 100) : 0
 
-  // Selected Summary Goal details (to calculate checkpoints differently for respective goals)
-  const summaryGoal = activeGoals.find(g => g.id === (txType === 'CONTRIBUTION' ? txGoalId : selectedGoalForAI)) || activeGoals[0]
+  // Calculate Affordability Score
+  const affordabilityScore = (() => {
+    if (goals.length === 0) return 100
+    // Factors: (income - expenses) relative to remaining amount & monthly target
+    const monthlySurplus = Math.max(0, profile.monthlyIncome - profile.monthlyExpenses)
+    if (monthlySurplus === 0) return 20 // Risky
+    
+    // Average months remaining across active goals
+    const monthsRemaining = goals.reduce((acc, g) => {
+      if (!g.targetDate) return acc + 12
+      const months = (new Date(g.targetDate).getTime() - Date.now()) / (30 * 24 * 60 * 60 * 1000)
+      return acc + Math.max(1, Math.round(months))
+    }, 0) / goals.length
 
-  const summaryTitle = summaryGoal ? `Checkpoints: ${summaryGoal.title}` : 'Financial Checkpoints Summary'
-  const summaryCost = summaryGoal ? (summaryGoal.budget || summaryGoal.estimatedCost || 10000) : 0
-  const summarySaved = summaryGoal ? (summaryGoal.amountSaved || 0) : 0
-  const summaryRemaining = Math.max(0, summaryCost - summarySaved)
-  const summaryPercentage = summaryCost > 0 ? Math.min(100, Math.round((summarySaved / summaryCost) * 100)) : 0
+    const requiredMonthlySavings = remainingAmount / Math.max(1, monthsRemaining)
+    const ratio = monthlySurplus / requiredMonthlySavings
 
+    if (ratio >= 1.5) return 90 // Excellent
+    if (ratio >= 1.0) return 75 // Good
+    if (ratio >= 0.5) return 50 // Moderate
+    return 30 // Risky
+  })()
 
+  const getAffordabilityLabel = (score: number) => {
+    if (score >= 85) return { text: 'Excellent', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' }
+    if (score >= 70) return { text: 'Good', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' }
+    if (score >= 45) return { text: 'Moderate', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' }
+    return { text: 'Risky', color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' }
+  }
+
+  const affordability = getAffordabilityLabel(affordabilityScore)
 
   // Savings Trend Coordinates (Line Chart)
   const lineChartPoints = (() => {
@@ -484,10 +393,10 @@ export default function FinancePlannerPage() {
       </div>
 
       {/* Navigation Header */}
-      <nav className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors duration-300 ${isDark ? 'border-slate-300 dark:border-slate-800 bg-[#030712]/75' : 'border-slate-200 bg-white/75'}`}>
+      <nav className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors duration-300 ${isDark ? 'border-white/5 bg-[#030712]/75' : 'border-slate-200 bg-white/75'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/dashboard" className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 transition-colors">
+            <Link href="/dashboard" className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-400 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               Back to Command
             </Link>
@@ -503,14 +412,14 @@ export default function FinancePlannerPage() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center min-h-[80vh]">
           <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-          <p className="mt-4 text-xs font-semibold text-slate-700 dark:text-slate-300">Synchronizing ledger and currency tables...</p>
+          <p className="mt-4 text-xs font-semibold text-slate-400">Synchronizing ledger and currency tables...</p>
         </div>
       ) : (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 space-y-8">
           
           {/* Header Banner */}
           <div className={`relative rounded-[32px] overflow-hidden border p-8 shadow-2xl ${
-            isDark ? 'border-slate-350 dark:border-white/20 bg-slate-900/40 backdrop-blur-2xl' : 'border-slate-200 bg-white'
+            isDark ? 'border-white/10 bg-slate-900/40 backdrop-blur-2xl' : 'border-slate-200 bg-white'
           }`}>
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-violet-500/5 pointer-events-none" />
             
@@ -521,30 +430,30 @@ export default function FinancePlannerPage() {
                   Premium Dream Finance Planner
                 </div>
                 <h1 className="text-4xl font-extrabold tracking-tight">Dream Finance Planner</h1>
-                <p className="text-slate-700 dark:text-slate-300 text-sm mt-1">Turn your dreams into achievable, optimized financial blueprints.</p>
+                <p className="text-slate-400 text-sm mt-1">Turn your dreams into achievable, optimized financial blueprints.</p>
               </div>
 
               {/* Monthly Income / Expense settings */}
-              <div className={`rounded-2xl border p-4 backdrop-blur-md ${isDark ? 'bg-white/5 border-slate-300 dark:border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+              <div className={`rounded-2xl border p-4 backdrop-blur-md ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-200'}`}>
                 {isEditingProfile ? (
                   <form onSubmit={handleUpdateProfile} className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">Income (₹)</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-400">Income (₹)</label>
                         <input
                           type="number"
                           value={tempIncome}
                           onChange={(e) => setTempIncome(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border bg-slate-950/30 border-slate-350 dark:border-white/20 focus:outline-none"
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border bg-slate-950/30 border-white/10 focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">Expenses (₹)</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-400">Expenses (₹)</label>
                         <input
                           type="number"
                           value={tempExpenses}
                           onChange={(e) => setTempExpenses(e.target.value)}
-                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border bg-slate-950/30 border-slate-350 dark:border-white/20 focus:outline-none"
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border bg-slate-950/30 border-white/10 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -557,7 +466,7 @@ export default function FinancePlannerPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between gap-8">
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">Monthly Surplus</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400">Monthly Surplus</span>
                         <p className="text-base font-black text-emerald-400">₹{(profile.monthlyIncome - profile.monthlyExpenses).toLocaleString()}</p>
                       </div>
                       <button 
@@ -567,7 +476,7 @@ export default function FinancePlannerPage() {
                         Adjust Setup
                       </button>
                     </div>
-                    <div className="text-[10px] text-slate-800 dark:text-slate-200">
+                    <div className="text-[10px] text-slate-500">
                       Income: ₹{profile.monthlyIncome.toLocaleString()} | Expenses: ₹{profile.monthlyExpenses.toLocaleString()}
                     </div>
                   </div>
@@ -586,8 +495,8 @@ export default function FinancePlannerPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {/* 1. Large Progress Ring Card */}
-                <div className={`md:col-span-3 rounded-[28px] border p-6 flex flex-col md:flex-row items-center gap-6 ${
-                  isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/20 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
+                <div className={`md:col-span-2 rounded-[28px] border p-6 flex flex-col md:flex-row items-center gap-6 ${
+                  isDark ? 'border-white/5 bg-slate-900/20 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
                 }`}>
                   <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
                     <svg className="w-full h-full transform -rotate-90">
@@ -601,38 +510,68 @@ export default function FinancePlannerPage() {
                         fill="transparent" 
                         strokeDasharray="339.3"
                         initial={{ strokeDashoffset: 339.3 }}
-                        animate={{ strokeDashoffset: 339.3 - (339.3 * summaryPercentage) / 100 }}
+                        animate={{ strokeDashoffset: 339.3 - (339.3 * completionPercentage) / 100 }}
                         transition={{ duration: 1.5, ease: "easeOut" }}
                         strokeLinecap="round"
                       />
                     </svg>
                     <div className="absolute flex flex-col items-center">
-                      <span className="text-2xl font-black">{summaryPercentage}%</span>
-                      <span className="text-[8px] uppercase font-bold text-slate-700 dark:text-slate-300 tracking-wider">Funded</span>
+                      <span className="text-2xl font-black">{completionPercentage}%</span>
+                      <span className="text-[8px] uppercase font-bold text-slate-400 tracking-wider">Funded</span>
                     </div>
                   </div>
 
                   <div className="space-y-3 flex-1">
-                    <h3 className="text-xs uppercase font-bold text-slate-700 dark:text-slate-300 tracking-wider truncate max-w-[280px]" title={summaryTitle}>
-                      {summaryTitle}
-                    </h3>
+                    <h3 className="text-xs uppercase font-bold text-slate-400 tracking-wider">Financial Checkpoints Summary</h3>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-[10px] text-slate-700 dark:text-slate-300 font-bold">Target Budget</p>
-                        <p className="text-xl font-black">₹{summaryCost.toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-400 font-bold">Total Dream Cost</p>
+                        <p className="text-xl font-black">₹{totalDreamCost.toLocaleString()}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-emerald-400 font-bold">Saved for Dream</p>
-                        <p className="text-xl font-black text-emerald-400">₹{summarySaved.toLocaleString()}</p>
+                        <p className="text-[10px] text-emerald-400 font-bold">Total Saved</p>
+                        <p className="text-xl font-black text-emerald-400">₹{totalSaved.toLocaleString()}</p>
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-300 dark:border-slate-800 pt-2.5">
-                      <p className="text-[10px] text-slate-700 dark:text-slate-300 font-medium">
-                        Remaining Amount needed: <span className="text-indigo-400 font-bold">₹{summaryRemaining.toLocaleString()}</span>
+                    <div className="border-t border-white/5 pt-2.5">
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        Remaining Amount needed: <span className="text-indigo-400 font-bold">₹{remainingAmount.toLocaleString()}</span>
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                {/* 2. Affordability Gauge & Savings Streak */}
+                <div className={`rounded-[28px] border p-6 flex flex-col justify-between space-y-4 ${
+                  isDark ? 'border-white/5 bg-slate-900/20 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
+                }`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Affordability Score</span>
+                      <p className="text-2xl font-black mt-1">{affordabilityScore}/100</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${affordability.bg} ${affordability.color} border ${affordability.border}`}>
+                      {affordability.text}
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-slate-950/45 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        affordabilityScore >= 80 ? 'bg-emerald-400' : affordabilityScore >= 50 ? 'bg-yellow-400' : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${affordabilityScore}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                      <Flame className="w-3.5 h-3.5 text-orange-500 animate-pulse fill-orange-500" />
+                      Saving Streak
+                    </span>
+                    <span className="text-xs font-bold">{profile.savingsStreak} {profile.savingsStreak === 1 ? 'Month' : 'Months'}</span>
                   </div>
                 </div>
 
@@ -641,20 +580,20 @@ export default function FinancePlannerPage() {
               {/* Goal-Level Budget Cards */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-widest flex items-center gap-2">
+                  <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-widest flex items-center gap-2">
                     <Landmark className="w-4 h-4 text-indigo-400" />
                     Goal-Level Budgets
                   </h3>
-                  <span className="text-[10px] text-slate-700 dark:text-slate-300">{activeGoals.length} Dreams Configured</span>
+                  <span className="text-[10px] text-slate-400">{goals.length} Dreams Configured</span>
                 </div>
 
-                {activeGoals.length === 0 ? (
-                  <div className={`rounded-2xl border p-8 text-center ${isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-white'}`}>
-                    <p className="text-xs text-slate-700 dark:text-slate-300">No active dreams found. Please go back and add your first dream to generate financial checkpoints!</p>
+                {goals.length === 0 ? (
+                  <div className={`rounded-2xl border p-8 text-center ${isDark ? 'border-white/5 bg-slate-900/10' : 'border-slate-200 bg-white'}`}>
+                    <p className="text-xs text-slate-400">No active dreams found. Please go back and add your first dream to generate financial checkpoints!</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {activeGoals.map((goal) => {
+                    {goals.map((goal) => {
                       const cost = goal.budget || goal.estimatedCost || 10000;
                       const saved = goal.amountSaved || 0;
                       const pct = Math.min(100, Math.round((saved / cost) * 100));
@@ -673,19 +612,9 @@ export default function FinancePlannerPage() {
                         : 'from-pink-500/20 to-rose-500/20 text-pink-400 border-pink-500/10';
 
                       return (
-                        <div 
-                          key={goal.id} 
-                          onClick={() => {
-                            setSelectedGoalForAI(goal.id)
-                            setTxGoalId(goal.id)
-                            setTxType('CONTRIBUTION')
-                          }}
-                          className={`rounded-2xl border p-5 flex flex-col justify-between space-y-4 hover:border-slate-350 dark:border-white/20 transition duration-300 cursor-pointer ${
-                            (txType === 'CONTRIBUTION' ? txGoalId === goal.id : selectedGoalForAI === goal.id)
-                              ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-500/5'
-                              : isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
-                          }`}
-                        >
+                        <div key={goal.id} className={`rounded-2xl border p-5 flex flex-col justify-between space-y-4 hover:border-white/10 transition duration-300 ${
+                          isDark ? 'border-white/5 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
+                        }`}>
                           <div className="flex justify-between items-start gap-4">
                             <div className="min-w-0">
                               <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 border rounded bg-gradient-to-r ${catColors}`}>
@@ -696,7 +625,7 @@ export default function FinancePlannerPage() {
                             
                             <div className="text-right shrink-0">
                               <span className="text-xs font-black">{pct}%</span>
-                              <p className="text-[9px] text-slate-800 dark:text-slate-200 uppercase font-bold">Funded</p>
+                              <p className="text-[9px] text-slate-500 uppercase font-bold">Funded</p>
                             </div>
                           </div>
 
@@ -707,13 +636,13 @@ export default function FinancePlannerPage() {
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
-                            <div className="flex justify-between text-[10px] text-slate-700 dark:text-slate-300">
+                            <div className="flex justify-between text-[10px] text-slate-400">
                               <span>Saved: ₹{saved.toLocaleString()}</span>
                               <span>Cost: ₹{cost.toLocaleString()}</span>
                             </div>
                           </div>
 
-                          <div className="border-t border-slate-300 dark:border-slate-800 pt-3 flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-300">
+                          <div className="border-t border-white/5 pt-3 flex justify-between items-center text-[10px] text-slate-400">
                             <div>
                               <p className="uppercase text-[9px] font-bold">Monthly Needed</p>
                               <p className="font-bold text-slate-200">₹{monthlySavingsNeeded.toLocaleString()}/mo</p>
@@ -722,34 +651,6 @@ export default function FinancePlannerPage() {
                               <p className="uppercase text-[9px] font-bold">Timeline</p>
                               <p className="font-bold">{goal.targetDate ? new Date(goal.targetDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Flexible'}</p>
                             </div>
-                          </div>
-
-                          <div className="border-t border-slate-350 dark:border-slate-800 pt-3 mt-1.5 flex justify-end">
-                            {goal.status === 'Completed' ? (
-                              <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                Goal Completed!
-                              </span>
-                            ) : pct >= 100 ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleCompleteGoal(goal.id, cost, goal.title)
-                                }}
-                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold rounded-lg text-[9px] uppercase transition shadow-md hover:shadow-emerald-500/20 cursor-pointer animate-pulse flex items-center gap-1"
-                              >
-                                <Sparkles className="w-3 h-3 text-yellow-300 animate-spin-slow" />
-                                Complete Goal
-                              </button>
-                            ) : (
-                              <button
-                                disabled
-                                className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 font-bold rounded-lg text-[9px] uppercase cursor-not-allowed border border-slate-300 dark:border-slate-700/50"
-                                title="Fund this goal to 100% to mark it completed!"
-                              >
-                                Save 100% to Complete
-                              </button>
-                            )}
                           </div>
                         </div>
                       )
@@ -763,9 +664,9 @@ export default function FinancePlannerPage() {
                 
                 {/* Log Transaction Form */}
                 <div className={`md:col-span-7 rounded-3xl border p-6 space-y-4 ${
-                  isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
+                  isDark ? 'border-white/5 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
                 }`}>
-                  <h3 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider flex items-center gap-2">
+                  <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
                     <Plus className="w-4 h-4 text-emerald-400" />
                     Log Savings Contribution
                   </h3>
@@ -773,7 +674,7 @@ export default function FinancePlannerPage() {
                   <form onSubmit={handleLogTransaction} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">Amount (₹)</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-400">Amount (₹)</label>
                         <input
                           type="number"
                           value={txAmount}
@@ -781,18 +682,18 @@ export default function FinancePlannerPage() {
                           placeholder="e.g. 5000"
                           required
                           className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-1 focus:ring-emerald-500/50 ${
-                            isDark ? 'bg-slate-950/40 border-slate-350 dark:border-white/20 text-white' : 'bg-slate-100 border-slate-250'
+                            isDark ? 'bg-slate-950/40 border-white/10 text-white' : 'bg-slate-100 border-slate-250'
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">Type</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-400">Type</label>
                         <select
                           value={txType}
                           onChange={(e) => setTxType(e.target.value)}
                           className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none ${
-                            isDark ? 'bg-slate-900 border-slate-350 dark:border-white/20 text-white' : 'bg-slate-100 border-slate-250'
+                            isDark ? 'bg-slate-900 border-white/10 text-white' : 'bg-slate-100 border-slate-250'
                           }`}
                         >
                           <option value="SAVINGS">General Wallet Savings</option>
@@ -804,17 +705,17 @@ export default function FinancePlannerPage() {
 
                     {txType === 'CONTRIBUTION' && (
                       <div>
-                        <label className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">Select Target Dream</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-400">Select Target Dream</label>
                         <select
                           value={txGoalId}
                           onChange={(e) => setTxGoalId(e.target.value)}
                           required
                           className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none ${
-                            isDark ? 'bg-slate-900 border-slate-350 dark:border-white/20 text-white' : 'bg-slate-100 border-slate-250'
+                            isDark ? 'bg-slate-900 border-white/10 text-white' : 'bg-slate-100 border-slate-250'
                           }`}
                         >
                           <option value="">-- Choose Goal --</option>
-                          {activeGoals.map(g => (
+                          {goals.map(g => (
                             <option key={g.id} value={g.id}>{g.title}</option>
                           ))}
                         </select>
@@ -822,14 +723,14 @@ export default function FinancePlannerPage() {
                     )}
 
                     <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">Notes / Details (Optional)</label>
+                      <label className="text-[10px] uppercase font-bold text-slate-400">Notes / Details (Optional)</label>
                       <input
                         type="text"
                         value={txNotes}
                         onChange={(e) => setTxNotes(e.target.value)}
                         placeholder="e.g. Salary bonus allocation, flight booking buffer"
                         className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none ${
-                          isDark ? 'bg-slate-950/40 border-slate-350 dark:border-white/20' : 'bg-slate-100 border-slate-250'
+                          isDark ? 'bg-slate-950/40 border-white/10' : 'bg-slate-100 border-slate-250'
                         }`}
                       />
                     </div>
@@ -846,34 +747,23 @@ export default function FinancePlannerPage() {
 
                 {/* Dream Wallet allocations & Badges */}
                 <div className={`md:col-span-5 flex flex-col justify-between space-y-4 p-6 rounded-3xl border ${
-                  isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
+                  isDark ? 'border-white/5 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
                 }`}>
                   <div>
-                    <h3 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider flex items-center gap-2">
+                    <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
                       <Wallet className="w-4 h-4 text-violet-400" />
                       Dream Wallet
                     </h3>
 
-                    <div className="mt-4 grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <span className="text-[10px] text-slate-700 dark:text-slate-300 font-bold uppercase">Total Wallet Balance</span>
-                        <p className="text-2xl font-black text-indigo-400">₹{profile.totalSavings.toLocaleString()}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[10px] text-slate-700 dark:text-slate-300 font-bold uppercase flex items-center gap-1">
-                          <Flame className="w-3.5 h-3.5 text-orange-500 animate-pulse fill-orange-500" />
-                          Saving Streak
-                        </span>
-                        <p className="text-2xl font-black text-orange-550 dark:text-orange-400">
-                          {profile.savingsStreak} {profile.savingsStreak === 1 ? 'Month' : 'Months'}
-                        </p>
-                      </div>
+                    <div className="mt-4 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Total Wallet Balance</span>
+                      <p className="text-2xl font-black text-indigo-400">₹{profile.totalSavings.toLocaleString()}</p>
                     </div>
                   </div>
 
                   {/* Achievements Badge showcase */}
                   <div className="space-y-3">
-                    <span className="text-[10px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider block">Unlocked Badges</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Unlocked Badges</span>
                     <div className="flex flex-wrap gap-2">
                       {['First Saver', 'Budget Master', 'Dream Investor', 'Finance Planner', 'Goal Funded'].map((badgeName) => {
                         const isUnlocked = unlockedBadges.includes(badgeName)
@@ -883,10 +773,10 @@ export default function FinancePlannerPage() {
                             className={`px-2.5 py-1 rounded-full text-[9px] font-bold border transition duration-300 flex items-center gap-1.5 ${
                               isUnlocked 
                                 ? 'bg-violet-500/15 border-violet-500/30 text-violet-300 shadow-[0_0_8px_rgba(139,92,246,0.15)]' 
-                                : 'bg-slate-950/20 border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100'
+                                : 'bg-slate-950/20 border-white/5 text-slate-600'
                             }`}
                           >
-                            <Award className={`w-3 h-3 ${isUnlocked ? 'text-violet-400 animate-bounce' : 'text-slate-900 dark:text-slate-100'}`} />
+                            <Award className={`w-3 h-3 ${isUnlocked ? 'text-violet-400 animate-bounce' : 'text-slate-600'}`} />
                             {badgeName}
                           </div>
                         )
@@ -902,9 +792,9 @@ export default function FinancePlannerPage() {
                 
                 {/* Savings trend (Line Chart) */}
                 <div className={`rounded-3xl border p-6 space-y-4 ${
-                  isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
+                  isDark ? 'border-white/5 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
                 }`}>
-                  <h4 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider flex items-center gap-2">
+                  <h4 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
                     Savings Logs Trend
                   </h4>
@@ -943,7 +833,7 @@ export default function FinancePlannerPage() {
                       ))}
                     </svg>
                   </div>
-                  <div className="flex justify-between text-[8px] text-slate-800 dark:text-slate-200 font-bold uppercase">
+                  <div className="flex justify-between text-[8px] text-slate-500 font-bold uppercase">
                     <span>Recent Logs</span>
                     <span>Current</span>
                   </div>
@@ -951,27 +841,27 @@ export default function FinancePlannerPage() {
 
                 {/* Goal cost comparison (Bar Chart) */}
                 <div className={`rounded-3xl border p-6 space-y-4 ${
-                  isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
+                  isDark ? 'border-white/5 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
                 }`}>
-                  <h4 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider flex items-center gap-2">
+                  <h4 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
                     <Scale className="w-4 h-4 text-violet-400" />
                     Goal Cost Comparison
                   </h4>
 
-                   {activeGoals.length === 0 ? (
+                  {goals.length === 0 ? (
                     <div className="h-32 flex items-center justify-center">
-                      <p className="text-[10px] text-slate-800 dark:text-slate-200 italic">No goals to compare</p>
+                      <p className="text-[10px] text-slate-500 italic">No goals to compare</p>
                     </div>
                   ) : (
                     <div className="w-full h-32 flex items-end gap-3 justify-center">
-                      {activeGoals.slice(0, 5).map((goal) => {
+                      {goals.slice(0, 5).map((goal) => {
                         const cost = goal.budget || goal.estimatedCost || 10000
-                        const maxCost = Math.max(...activeGoals.map(g => g.budget || g.estimatedCost || 10000), 50000)
+                        const maxCost = Math.max(...goals.map(g => g.budget || g.estimatedCost || 10000), 50000)
                         const barHeight = Math.max(10, Math.round((cost / maxCost) * 100))
                         
                         return (
                           <div key={goal.id} className="flex-1 flex flex-col items-center gap-2 max-w-[40px]">
-                            <span className="text-[8px] font-bold text-slate-700 dark:text-slate-300 truncate w-full text-center">
+                            <span className="text-[8px] font-bold text-slate-400 truncate w-full text-center">
                               ₹{(cost / 1000).toFixed(0)}k
                             </span>
                             <div className="w-full bg-slate-950/45 rounded-md h-20 relative overflow-hidden flex items-end">
@@ -982,7 +872,7 @@ export default function FinancePlannerPage() {
                                 transition={{ duration: 1 }}
                               />
                             </div>
-                            <span className="text-[8px] text-slate-800 dark:text-slate-200 truncate w-full text-center font-semibold">
+                            <span className="text-[8px] text-slate-500 truncate w-full text-center font-semibold">
                               {goal.title}
                             </span>
                           </div>
@@ -996,24 +886,24 @@ export default function FinancePlannerPage() {
 
               {/* Transactions log table */}
               <div className={`rounded-3xl border p-6 space-y-4 ${
-                isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
+                isDark ? 'border-white/5 bg-slate-900/10' : 'border-slate-200 bg-white shadow-sm'
               }`}>
-                <h4 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider">Recent Contribution History</h4>
+                <h4 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider">Recent Contribution History</h4>
                 
                 {transactions.length === 0 ? (
-                  <p className="text-xs text-slate-800 dark:text-slate-200 italic py-4 text-center">No transaction logs recorded yet.</p>
+                  <p className="text-xs text-slate-500 italic py-4 text-center">No transaction logs recorded yet.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                    <table className="w-full text-left text-xs text-slate-400">
                       <thead>
-                        <tr className="border-b border-slate-300 dark:border-slate-800 text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">
+                        <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-slate-400">
                           <th className="py-2.5">Date</th>
                           <th>Type</th>
                           <th>Details</th>
                           <th className="text-right">Amount</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-250 dark:divide-slate-800">
+                      <tbody className="divide-y divide-white/5">
                         {transactions.slice(0, 5).map((tx) => (
                           <tr key={tx.id} className="hover:bg-white/5 transition-colors">
                             <td className="py-2.5 text-[10px]">{new Date(tx.createdAt).toLocaleDateString()}</td>
@@ -1045,9 +935,9 @@ export default function FinancePlannerPage() {
               
               {/* 1. What-If Budget Simulator */}
               <div className={`rounded-3xl border p-6 space-y-5 ${
-                isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/15 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
+                isDark ? 'border-white/5 bg-slate-900/15 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
               }`}>
-                <h3 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider flex items-center gap-2">
+                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
                   <Calculator className="w-4.5 h-4.5 text-indigo-400" />
                   What-If Budget Simulator
                 </h3>
@@ -1055,7 +945,7 @@ export default function FinancePlannerPage() {
                 <div className="space-y-4">
                   {/* Slider 1: Extra monthly savings */}
                   <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] text-slate-700 dark:text-slate-300 font-bold uppercase">
+                    <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase">
                       <span>Extra Monthly Savings</span>
                       <span className="text-emerald-400">+₹{simExtraSavings.toLocaleString()}</span>
                     </div>
@@ -1072,7 +962,7 @@ export default function FinancePlannerPage() {
 
                   {/* Slider 2: Delay goals */}
                   <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] text-slate-700 dark:text-slate-300 font-bold uppercase">
+                    <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase">
                       <span>Postpone Goals By</span>
                       <span className="text-indigo-400">{simDelayMonths} Months</span>
                     </div>
@@ -1095,18 +985,18 @@ export default function FinancePlannerPage() {
                   const simulatedMonths = Math.max(0, currentMonthsToComplete - simDelayMonths)
                   
                   return (
-                    <div className="p-3.5 rounded-2xl bg-slate-950/35 border border-slate-300 dark:border-slate-800 space-y-2">
-                      <div className="flex justify-between text-[10px] text-slate-700 dark:text-slate-300">
+                    <div className="p-3.5 rounded-2xl bg-slate-950/35 border border-white/5 space-y-2">
+                      <div className="flex justify-between text-[10px] text-slate-400">
                         <span>Projected Savings Rate:</span>
                         <span className="font-bold text-slate-200">₹{surplus.toLocaleString()}/mo</span>
                       </div>
-                      <div className="flex justify-between text-[10px] text-slate-700 dark:text-slate-300">
+                      <div className="flex justify-between text-[10px] text-slate-400">
                         <span>Projected Completion:</span>
                         <span className="font-bold text-emerald-400">
                           {simulatedMonths <= 0 ? 'Immediately' : `${simulatedMonths.toFixed(1)} months`}
                         </span>
                       </div>
-                      <div className="text-[9px] text-slate-800 dark:text-slate-200 italic mt-1 text-center">
+                      <div className="text-[9px] text-slate-500 italic mt-1 text-center">
                         "Increasing monthly contributions and extending timelines reduces risk index by 40%."
                       </div>
                     </div>
@@ -1116,37 +1006,37 @@ export default function FinancePlannerPage() {
 
               {/* 2. Inflation Adjustment & Currency Converter */}
               <div className={`rounded-3xl border p-6 space-y-5 ${
-                isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/15 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
+                isDark ? 'border-white/5 bg-slate-900/15 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
               }`}>
-                <h3 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider flex items-center gap-2">
+                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
                   <Coins className="w-4.5 h-4.5 text-emerald-400" />
                   Inflation & Currency Tools
                 </h3>
 
                 {/* Inflation Calculator */}
-                <div className="space-y-3 pb-4 border-b border-slate-300 dark:border-slate-800">
-                  <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300 tracking-wider block">Inflation Adjustment</span>
+                <div className="space-y-3 pb-4 border-b border-white/5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Inflation Adjustment</span>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="text-[9px] text-slate-800 dark:text-slate-200">Rate ({inflationRate}%)</label>
+                      <label className="text-[9px] text-slate-500">Rate ({inflationRate}%)</label>
                       <input 
                         type="number" 
                         value={inflationRate} 
                         onChange={(e) => setInflationRate(parseFloat(e.target.value) || 0)} 
-                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border bg-slate-950/20 border-slate-300 dark:border-slate-800 focus:outline-none"
+                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border bg-slate-950/20 border-white/5 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="text-[9px] text-slate-800 dark:text-slate-200">Years</label>
+                      <label className="text-[9px] text-slate-500">Years</label>
                       <input 
                         type="number" 
                         value={targetInflationYears} 
                         onChange={(e) => setTargetInflationYears(parseInt(e.target.value) || 0)} 
-                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border bg-slate-950/20 border-slate-300 dark:border-slate-800 focus:outline-none"
+                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border bg-slate-950/20 border-white/5 focus:outline-none"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-300 bg-slate-950/30 p-2 rounded-xl">
+                  <div className="flex justify-between items-center text-[10px] text-slate-400 bg-slate-950/30 p-2 rounded-xl">
                     <span>Future Inflation Cost:</span>
                     <span className="font-bold text-rose-400">₹{Math.round(futureCost).toLocaleString()}</span>
                   </div>
@@ -1154,30 +1044,30 @@ export default function FinancePlannerPage() {
 
                 {/* Currency Converter */}
                 <div className="space-y-3">
-                  <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300 tracking-wider block">Travel Exchange Rate</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Travel Exchange Rate</span>
                   <div className="grid grid-cols-3 gap-2 items-center">
                     <input 
                       type="number" 
                       value={convertAmount} 
                       onChange={(e) => setConvertAmount(e.target.value)} 
-                      className="w-full text-xs px-2 py-1.5 rounded-lg border bg-slate-950/20 border-slate-300 dark:border-slate-800 focus:outline-none"
+                      className="w-full text-xs px-2 py-1.5 rounded-lg border bg-slate-950/20 border-white/5 focus:outline-none"
                     />
                     <select 
                       value={fromCurrency} 
                       onChange={(e) => setFromCurrency(e.target.value)} 
-                      className="text-[10px] bg-slate-950/40 text-white rounded-lg border border-slate-300 dark:border-slate-800 p-1 focus:outline-none"
+                      className="text-[10px] bg-slate-950/40 text-white rounded-lg border border-white/5 p-1 focus:outline-none"
                     >
                       {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
                     </select>
                     <select 
                       value={toCurrency} 
                       onChange={(e) => setToCurrency(e.target.value)} 
-                      className="text-[10px] bg-slate-950/40 text-white rounded-lg border border-slate-300 dark:border-slate-800 p-1 focus:outline-none"
+                      className="text-[10px] bg-slate-950/40 text-white rounded-lg border border-white/5 p-1 focus:outline-none"
                     >
                       {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
                     </select>
                   </div>
-                  <div className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-300 bg-slate-950/30 p-2 rounded-xl">
+                  <div className="flex justify-between items-center text-[10px] text-slate-400 bg-slate-950/30 p-2 rounded-xl">
                     <span>Converted Amount:</span>
                     <span className="font-bold text-emerald-400">
                       {CURRENCIES.find(c => c.code === toCurrency)?.symbol} {convertedResult}
@@ -1188,32 +1078,32 @@ export default function FinancePlannerPage() {
 
               {/* 3. AI Cost Estimation & Budget Optimizer */}
               <div className={`rounded-3xl border p-6 space-y-4 ${
-                isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/15 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
+                isDark ? 'border-white/5 bg-slate-900/15 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
               }`}>
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider flex items-center gap-2">
+                  <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
                     <Scale className="w-4.5 h-4.5 text-indigo-400 animate-pulse" />
                     AI Cost Optimizer
                   </h3>
                   
-                   {activeGoals.length > 0 && (
+                  {goals.length > 0 && (
                     <select 
                       value={selectedGoalForAI} 
                       onChange={(e) => setSelectedGoalForAI(e.target.value)}
-                      className="text-[10px] bg-slate-950/40 border border-slate-300 dark:border-slate-800 rounded-lg p-1 text-white max-w-[120px] focus:outline-none"
+                      className="text-[10px] bg-slate-950/40 border border-white/5 rounded-lg p-1 text-white max-w-[120px] focus:outline-none"
                     >
-                      {activeGoals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+                      {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
                     </select>
                   )}
                 </div>
 
-                {activeGoals.length === 0 ? (
-                  <p className="text-xs text-slate-800 dark:text-slate-200 italic text-center">Add dreams to see AI optimizations</p>
+                {goals.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic text-center">Add dreams to see AI optimizations</p>
                 ) : (
                   <div className="space-y-4">
                     {/* Estimated Cost comparison banner */}
                     {(() => {
-                      const tg = activeGoals.find(g => g.id === selectedGoalForAI)
+                      const tg = goals.find(g => g.id === selectedGoalForAI)
                       if (!tg) return null
                       const est = tg.estimatedCost || (tg.budget ? tg.budget * 1.3 : 150000)
                       const bud = tg.budget || est * 0.7
@@ -1225,11 +1115,11 @@ export default function FinancePlannerPage() {
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-2 text-[10px] bg-slate-950/30 p-3 rounded-2xl">
                             <div>
-                              <span className="text-slate-700 dark:text-slate-300">AI Estimated:</span>
+                              <span className="text-slate-400">AI Estimated:</span>
                               <p className="font-bold text-slate-200">₹{est.toLocaleString()}</p>
                             </div>
                             <div>
-                              <span className="text-slate-700 dark:text-slate-300">Your Budget:</span>
+                              <span className="text-slate-400">Your Budget:</span>
                               <p className="font-bold text-slate-200">₹{bud.toLocaleString()}</p>
                             </div>
                           </div>
@@ -1248,15 +1138,15 @@ export default function FinancePlannerPage() {
                     })()}
 
                     {/* Optimization suggestions list */}
-                    <div className="space-y-2 text-xs border-t border-slate-300 dark:border-slate-800 pt-3">
-                      <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-300">AI Optimization Alternatives</span>
+                    <div className="space-y-2 text-xs border-t border-white/5 pt-3">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">AI Optimization Alternatives</span>
                       {isOptimizing ? (
                         <div className="flex items-center justify-center gap-2 py-4">
                           <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
-                          <span className="text-[10px] text-slate-700 dark:text-slate-300">Scanning cheaper travel nodes...</span>
+                          <span className="text-[10px] text-slate-400">Scanning cheaper travel nodes...</span>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-slate-700 dark:text-slate-300 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-line bg-slate-950/20 p-3 rounded-2xl scrollbar-hide border border-slate-300 dark:border-slate-800">
+                        <div className="text-[10px] text-slate-400 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-line bg-slate-950/20 p-3 rounded-2xl scrollbar-hide border border-white/5">
                           {optimizationResult || 'Alternative itineraries loaded.'}
                         </div>
                       )}
@@ -1267,14 +1157,14 @@ export default function FinancePlannerPage() {
 
               {/* 4. AI Financial Coach Conversations chatbot */}
               <div className={`rounded-3xl border p-6 flex flex-col justify-between h-[380px] ${
-                isDark ? 'border-slate-300 dark:border-slate-800 bg-slate-900/15 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
+                isDark ? 'border-white/5 bg-slate-900/15 backdrop-blur-xl' : 'border-slate-200 bg-white shadow-sm'
               }`}>
-                <div className="border-b border-slate-300 dark:border-slate-800 pb-3">
-                  <h3 className="text-xs uppercase font-extrabold text-slate-700 dark:text-slate-300 tracking-wider flex items-center gap-2">
+                <div className="border-b border-white/5 pb-3">
+                  <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
                     <MessageSquare className="w-4.5 h-4.5 text-violet-400 animate-pulse" />
                     AI Financial Coach
                   </h3>
-                  <span className="text-[9px] text-slate-800 dark:text-slate-200">Real-time answers driven by Llama-3.1 AI</span>
+                  <span className="text-[9px] text-slate-500">Real-time answers driven by Llama-3.1 AI</span>
                 </div>
 
                 {/* Messages Panel */}
@@ -1287,7 +1177,7 @@ export default function FinancePlannerPage() {
                       <div className={`rounded-2xl px-3 py-2 max-w-[85%] text-[10px] leading-relaxed ${
                         msg.role === 'user' 
                           ? 'bg-indigo-600 text-white rounded-tr-none' 
-                          : 'bg-slate-950/40 text-slate-300 border border-slate-300 dark:border-slate-800 rounded-tl-none'
+                          : 'bg-slate-950/40 text-slate-300 border border-white/5 rounded-tl-none'
                       }`}>
                         {msg.content}
                       </div>
@@ -1295,7 +1185,7 @@ export default function FinancePlannerPage() {
                   ))}
                   {isChatLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-slate-950/40 border border-slate-300 dark:border-slate-800 rounded-2xl rounded-tl-none px-3 py-2 text-[10px] text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <div className="bg-slate-950/40 border border-white/5 rounded-2xl rounded-tl-none px-3 py-2 text-[10px] text-slate-500 flex items-center gap-1.5">
                         <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
                         Coach is thinking...
                       </div>
@@ -1305,16 +1195,16 @@ export default function FinancePlannerPage() {
                 </div>
 
                 {/* Preset Fast Queries */}
-                <div className="flex gap-1.5 flex-wrap py-2 border-t border-slate-300 dark:border-slate-800">
+                <div className="flex gap-1.5 flex-wrap py-2 border-t border-white/5">
                   <button 
                     onClick={() => handleSendMessage(undefined, 'Can I afford my dreams?')}
-                    className="text-[8px] font-bold px-2 py-1 rounded bg-slate-950/40 border border-slate-300 dark:border-slate-800 text-slate-400 hover:text-white"
+                    className="text-[8px] font-bold px-2 py-1 rounded bg-slate-950/40 border border-white/5 text-slate-400 hover:text-white"
                   >
                     Can I afford it?
                   </button>
                   <button 
                     onClick={() => handleSendMessage(undefined, 'How can I save faster?')}
-                    className="text-[8px] font-bold px-2 py-1 rounded bg-slate-950/40 border border-slate-300 dark:border-slate-800 text-slate-400 hover:text-white"
+                    className="text-[8px] font-bold px-2 py-1 rounded bg-slate-950/40 border border-white/5 text-slate-400 hover:text-white"
                   >
                     Save Faster
                   </button>
@@ -1329,7 +1219,7 @@ export default function FinancePlannerPage() {
                     placeholder="Ask AI Coach a question..."
                     disabled={isChatLoading}
                     className={`flex-1 text-[10px] px-3 py-2 rounded-xl border focus:outline-none focus:ring-1 focus:ring-indigo-500/50 ${
-                      isDark ? 'bg-slate-950/40 border-slate-350 dark:border-white/20 text-white' : 'bg-slate-50 border-slate-200'
+                      isDark ? 'bg-slate-950/40 border-white/10 text-white' : 'bg-slate-50 border-slate-200'
                     }`}
                   />
                   <button

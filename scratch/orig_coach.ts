@@ -53,11 +53,6 @@ Suggest:
 1. Three alternative, cheaper options (name, cost in ₹, and brief reason why it saves money).
 2. Cost breakdown structure (Flights/Travel, Lodging, Food, Training/Equipment, Misc).
 3. Savings optimization tip (concrete adjustment in monthly budget).`
-    } else if (mode === 'estimate-cost') {
-      systemPrompt = `You are MyBuko's AI Cost Estimator. You estimate the realistic cost of bucket list dreams for Indian users in Indian Rupees (₹).
-Given a dream title, reply with ONLY a single raw number representing the estimated cost in Indian Rupees (no currency symbol, no commas, no text). For example, if the estimated cost is ₹1,50,000, reply: 150000. If the cost is ₹5,000, reply: 5000.`
-      
-      userMessageContent = `Estimate the cost of this dream: "${goalContext.title}"`
     } else {
       // Default: Conversational Coach
       systemPrompt = `You are MyBuko's Premium AI Financial Coach. You help users plan, save for, and budget their bucket list dreams.
@@ -117,20 +112,6 @@ Instructions:
 
 // Intelligent mock responses when GROQ key is missing or fails
 function generateMockCoachResponse(mode: string, messages: any[], goalContext: any) {
-  if (mode === 'estimate-cost') {
-    const title = (goalContext?.title || '').toLowerCase()
-    if (title.includes('japan')) return '180000'
-    if (title.includes('guitar')) return '8000'
-    if (title.includes('book')) return '3000'
-    if (title.includes('cruise')) return '250000'
-    if (title.includes('everest')) return '150000'
-    if (title.includes('reef')) return '200000'
-    if (title.includes('zealand')) return '300000'
-    if (title.includes('fit')) return '6000'
-    if (title.includes('trip')) return '40000'
-    return '15000' // fallback
-  }
-
   if (mode === 'optimize') {
     const title = goalContext?.title || 'Japan Trip'
     if (title.toLowerCase().includes('japan')) {

@@ -41,6 +41,8 @@ model User {
   totalSavings        Float                @default(0)
   savingsStreak       Int                  @default(0)
   badges              String               @default("")
+  emergencySavings    Float                @default(0)
+  categoryBudgets     String?
   financeTransactions FinanceTransaction[]
 }
 model Story {
@@ -253,7 +255,8 @@ model PostComment {
 model FinanceTransaction {
   id        String   @id @default(cuid())
   amount    Float
-  type      String   // "INCOME", "EXPENSE", "SAVINGS", "CONTRIBUTION"
+  type      String   // "INCOME", "EXPENSE", "SAVINGS", "CONTRIBUTION", "EMERGENCY"
+  category  String?  // "Food", "Travel", "Education", "Shopping", "Entertainment", "Health", "Bills", "Other"
   notes     String?
   createdAt DateTime @default(now())
   goalId    String?
