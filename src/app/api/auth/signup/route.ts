@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
 
       // If user exists but is NOT verified, overwrite/update registration details
       const hashedPassword = await hashPassword(password)
+      console.log(`[Signup API] Generating OTP for existing unverified user: ${normalizedEmail}`)
       const otp = generateOtp()
       const otpExpiry = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
 
@@ -73,7 +74,9 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      await sendOtpEmail(normalizedEmail, otp, 'register')
+      console.log(`[Signup API] Sending OTP email to ${normalizedEmail} with OTP: ${otp}`)
+      const emailSent = await sendOtpEmail(normalizedEmail, otp, 'register')
+      console.log(`[Signup API] OTP email send operation finished for ${normalizedEmail}. Result: ${emailSent}`)
 
       return NextResponse.json({
         message: 'Verification OTP sent successfully',
@@ -83,6 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Create a new unverified user in the database
     const hashedPassword = await hashPassword(password)
+    console.log(`[Signup API] Generating OTP for new user: ${normalizedEmail}`)
     const otp = generateOtp()
     const otpExpiry = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
 
@@ -98,7 +102,9 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    await sendOtpEmail(normalizedEmail, otp, 'register')
+    console.log(`[Signup API] Sending OTP email to ${normalizedEmail} with OTP: ${otp}`)
+    const emailSent = await sendOtpEmail(normalizedEmail, otp, 'register')
+    console.log(`[Signup API] OTP email send operation finished for ${normalizedEmail}. Result: ${emailSent}`)
 
     return NextResponse.json({
       message: 'Verification OTP sent successfully',

@@ -1,3 +1,6 @@
 [2026-06-13T16:57:11.336Z] Email: abchangehongenaruto@gmail.com | OTP: 148667 | Purpose: register
 [2026-06-13T17:31:42.395Z] Email: abchangehongenaruto@gmail.com | OTP: 312038 | Purpose: register
 [2026-06-13T18:33:36.735Z] Email: finance_user_new@mybuko.com | OTP: 194742 | Purpose: register
+[2026-06-14T06:38:07.169Z] Email: giriiiakanskaha@gmail.com | OTP: 654929 | Purpose: register
+[2026-06-14T06:46:38.776Z] Email: akugiriiii@gmail.com | OTP: 156202 | Purpose: register
+[2026-06-14T07:02:26.345Z] Email: test-signup-agent-123@example.com | OTP: 541454 | Purpose: register
