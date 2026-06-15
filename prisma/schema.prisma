@@ -42,6 +42,7 @@ model User {
   savingsStreak       Int                  @default(0)
   badges              String               @default("")
   emergencySavings    Float                @default(0)
+  emergencyTarget     Float                @default(0)
   categoryBudgets     String?
   financeTransactions FinanceTransaction[]
 }
@@ -177,6 +178,7 @@ model Message {
   createdAt          DateTime @default(now())
   deletedForEveryone Boolean  @default(false)
   deletedFor         String   @default("")
+  reactions          String   @default("")
 
   chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)

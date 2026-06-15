@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTheme } from '../../../theme-provider'
 import {
-  ArrowLeft, Smile, Paperclip, Palette, Send, Download, 
-  FileText, Sparkles, Trash2, Search, Star, Globe, Mic, 
+  ArrowLeft, Smile, Paperclip, Palette, Send, Download,
+  FileText, Sparkles, Trash2, Search, Star, Globe, Mic,
   CirclePlay, CheckCheck, X
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -104,9 +104,9 @@ const renderMessageText = (text: string) => {
   return parts.map((part, i) => {
     if (urlRegex.test(part)) {
       return (
-        <a 
-          key={i} 
-          href={part} 
+        <a
+          key={i}
+          href={part}
           target="_blank"
           rel="noopener noreferrer"
           className="underline text-cyan-400 dark:text-cyan-300 hover:opacity-85 break-all font-bold"
@@ -117,6 +117,86 @@ const renderMessageText = (text: string) => {
     }
     return part
   })
+}
+
+function AudioPlayer({ src }: { src: string }) {
+  const [playing, setPlaying] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    const audio = new Audio(src)
+    audioRef.current = audio
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const onLoadedMetadata = () => {
+      if (!isNaN(audio.duration) && isFinite(audio.duration)) {
+        setDuration(audio.duration)
+      }
+    }
+    const onEnded = () => setPlaying(false)
+
+    audio.addEventListener('timeupdate', onTimeUpdate)
+    audio.addEventListener('loadedmetadata', onLoadedMetadata)
+    audio.addEventListener('ended', onEnded)
+
+    return () => {
+      audio.pause()
+      audio.removeEventListener('timeupdate', onTimeUpdate)
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata)
+      audio.removeEventListener('ended', onEnded)
+    }
+  }, [src])
+
+  const togglePlay = () => {
+    if (!audioRef.current) return
+    if (playing) {
+      audioRef.current.pause()
+      setPlaying(false)
+    } else {
+      audioRef.current.play().catch(err => console.error("Playback failed", err))
+      setPlaying(true)
+    }
+  }
+
+  const formatTime = (time: number) => {
+    if (isNaN(time) || !isFinite(time)) return '0:00'
+    const mins = Math.floor(time / 60)
+    const secs = Math.floor(time % 60)
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+  }
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+
+  return (
+    <div className="flex items-center gap-3 py-2 px-4 rounded-2xl bg-black/20 text-white min-w-[200px] border border-white/5 shadow-inner">
+      <button
+        onClick={togglePlay}
+        className="p-1.5 bg-indigo-500 hover:bg-indigo-650 rounded-full cursor-pointer transition-all hover:scale-105 active:scale-95 flex items-center justify-center shrink-0"
+      >
+        {playing ? (
+          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+          </svg>
+        ) : (
+          <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="h-1 bg-white/20 rounded-full overflow-hidden w-full relative">
+          <div className="absolute top-0 left-0 h-full bg-indigo-400" style={{ width: `${progress}%` }} />
+        </div>
+        <div className="flex justify-between text-[8px] text-slate-350 mt-1 font-mono">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration || 0)}</span>
+        </div>
+      </div>
+      <span className="text-[9px] font-bold tracking-wider shrink-0 text-indigo-300">Voice Note</span>
+    </div>
+  )
 }
 
 export default function ChatRoomPage() {
@@ -134,7 +214,7 @@ export default function ChatRoomPage() {
   const [fileNameText, setFileNameText] = useState('')
   const [uploading, setUploading] = useState(false)
   const [other, setOther] = useState<any>(null)
-  
+
   // Real-time states
   const [isOtherTyping, setIsOtherTyping] = useState(false)
   const [otherTypingName, setOtherTypingName] = useState('')
@@ -157,6 +237,11 @@ export default function ChatRoomPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const recordInterval = useRef<any>(null)
+
+  // Real recording refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
 
   // Custom theme choices
   const [chatTheme, setChatTheme] = useState<ChatTheme>(CHAT_THEMES[0])
@@ -205,8 +290,14 @@ export default function ChatRoomPage() {
       }
       if (res.ok) {
         const data = await res.json()
-        setMessages(data.messages || [])
-        setHasMore((data.messages || []).length === 20)
+        const parsedMsgs = (data.messages || []).map((m: any) => ({
+          ...m,
+          reactions: typeof m.reactions === 'string'
+            ? m.reactions.split(',').filter(Boolean)
+            : Array.isArray(m.reactions) ? m.reactions : []
+        }))
+        setMessages(parsedMsgs)
+        setHasMore(parsedMsgs.length === 20)
         if (data.other) {
           setOther(data.other)
         }
@@ -246,7 +337,7 @@ export default function ChatRoomPage() {
     try {
       const oldestMsg = messages[0]
       const url = `/api/chats/${chatId}/messages?cursor=${encodeURIComponent(oldestMsg.id)}`
-      
+
       // Save scroll metrics before updating state
       if (listRef.current) {
         lastScrollHeightRef.current = listRef.current.scrollHeight
@@ -256,8 +347,13 @@ export default function ChatRoomPage() {
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       if (res.ok) {
         const data = await res.json()
-        const olderMessages = data.messages || []
-        
+        const olderMessages = (data.messages || []).map((m: any) => ({
+          ...m,
+          reactions: typeof m.reactions === 'string'
+            ? m.reactions.split(',').filter(Boolean)
+            : Array.isArray(m.reactions) ? m.reactions : []
+        }))
+
         if (olderMessages.length > 0) {
           setMessages(prev => {
             const existingIds = new Set(prev.map(m => m.id))
@@ -301,9 +397,9 @@ export default function ChatRoomPage() {
   useEffect(() => {
     const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    if (!storedUser || !token) { 
+    if (!storedUser || !token) {
       router.push('/auth/login')
-      return 
+      return
     }
     const parsed = JSON.parse(storedUser)
     setUser(parsed)
@@ -332,22 +428,28 @@ export default function ChatRoomPage() {
 
     // Listen for live messages in the room
     socket.on('message', (message) => {
+      const parsedMessage = {
+        ...message,
+        reactions: typeof message.reactions === 'string'
+          ? message.reactions.split(',').filter(Boolean)
+          : Array.isArray(message.reactions) ? message.reactions : []
+      }
       // 1. Add message to feed (and clear matching optimistic message if any)
       setMessages(prev => {
         // If message already exists, skip
-        if (prev.some(m => m.id === message.id)) return prev
+        if (prev.some(m => m.id === parsedMessage.id)) return prev
 
         // Remove optimistic message that matches the same sender and content
         let filtered = prev
-        if (message.senderId === parsed.id) {
-          filtered = prev.filter(m => !(m.sending && m.text === message.text))
+        if (parsedMessage.senderId === parsed.id) {
+          filtered = prev.filter(m => !(m.sending && m.text === parsedMessage.text))
         }
 
-        return [...filtered, message]
+        return [...filtered, parsedMessage]
       })
 
       // 2. Clear typing indicator for the sender
-      if (message.senderId !== parsed.id) {
+      if (parsedMessage.senderId !== parsed.id) {
         setIsOtherTyping(false)
         // Mark seen in database via WebSockets immediately since the chat is open
         socket.emit('mark_seen', { chatId })
@@ -365,7 +467,7 @@ export default function ChatRoomPage() {
     socket.on('typing', ({ name }) => {
       setOtherTypingName(name)
       setIsOtherTyping(true)
-      
+
       // Auto scroll to typing indicator if scrolled to bottom
       setTimeout(() => {
         if (listRef.current) {
@@ -384,6 +486,17 @@ export default function ChatRoomPage() {
     // Listen for read receipts
     socket.on('mark_seen', ({ lastSeenAt }) => {
       setOtherLastSeenAt(lastSeenAt)
+    })
+
+    // Listen for incoming message reactions
+    socket.on('message_reaction', ({ messageId, emoji }) => {
+      setMessages(prev => prev.map(m => {
+        if (m.id === messageId) {
+          const reacts = Array.isArray(m.reactions) ? m.reactions : []
+          return { ...m, reactions: [...reacts, emoji] }
+        }
+        return m
+      }))
     })
 
     // Listen for live updates to the chat list (sidebar synchronization)
@@ -458,25 +571,84 @@ export default function ChatRoomPage() {
     setShowThemePicker(false)
   }
 
-  const handleSendFileMsg = (fileUrl: string, fileType: string) => {
-    if (socketRef.current) {
-      socketRef.current.emit('send_message', {
-        chatId,
-        text: '',
-        fileUrl,
-        fileType
+  const sendMsgREST = async (messageText: string, fileUrl: string | null = null, fileType: string | null = null) => {
+    if (!user) return
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    // Optimistic UI update: append message instantly to feed
+    const tempId = `temp-${Date.now()}`
+    const tempMsg = {
+      id: tempId,
+      text: messageText,
+      fileUrl: fileUrl,
+      fileType: fileType,
+      createdAt: new Date().toISOString(),
+      senderId: user.id,
+      sending: true
+    }
+    setMessages(prev => [...prev, tempMsg])
+    setText('')
+
+    // Scroll immediately
+    setTimeout(() => {
+      if (listRef.current) {
+        listRef.current.scrollTop = listRef.current.scrollHeight
+      }
+    }, 20)
+
+    try {
+      const res = await fetch(`/api/chats/${chatId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          text: messageText,
+          fileUrl,
+          fileType
+        })
       })
+
+      if (res.ok) {
+        const data = await res.json()
+        const savedMessage = data.message
+
+        // Replace optimistic message with the saved one
+        setMessages(prev => prev.map(m => m.id === tempId ? savedMessage : m))
+
+        // Emit broadcast via WebSocket if connected
+        if (socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('broadcast_saved_message', {
+            chatId,
+            message: savedMessage
+          })
+        }
+      } else {
+        console.error('Failed to send message via REST')
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, sending: false, error: true } : m))
+      }
+    } catch (err) {
+      console.error('REST send message error:', err)
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, sending: false, error: true } : m))
     }
   }
 
-  // Send message over WebSockets (with optimistic UI update)
+  const handleSendFileMsg = (fileUrl: string, fileType: string) => {
+    sendMsgREST('', fileUrl, fileType)
+  }
+
+  // Send message over REST API with optimistic UI and socket broadcast
   const sendMessage = async () => {
     if (!text.trim() && !file) return
-    if (!socketRef.current || !user) return
+    if (!user) return
 
     // Clear typing indicator timeouts
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
-    socketRef.current.emit('stop_typing', { chatId })
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('stop_typing', { chatId })
+    }
 
     setUploading(true)
 
@@ -488,36 +660,13 @@ export default function ChatRoomPage() {
         const up = await fetch('/api/files/upload', { method: 'POST', body: fd })
         if (up.ok) {
           const d = await up.json()
-          handleSendFileMsg(d.url, file.type)
+          await sendMsgREST('', d.url, file.type)
         }
         setFile(null)
         setFileNameText('')
       } else {
         const messageText = text.trim()
-        
-        // Optimistic UI update: append message instantly to feed
-        const tempMsg = {
-          id: `temp-${Date.now()}`,
-          text: messageText,
-          createdAt: new Date().toISOString(),
-          senderId: user.id,
-          sending: true
-        }
-        setMessages(prev => [...prev, tempMsg])
-        setText('')
-
-        // Emit message over WebSockets
-        socketRef.current.emit('send_message', {
-          chatId,
-          text: messageText
-        })
-
-        // Scroll immediately
-        setTimeout(() => {
-          if (listRef.current) {
-            listRef.current.scrollTop = listRef.current.scrollHeight
-          }
-        }, 20)
+        await sendMsgREST(messageText)
       }
     } catch (err) {
       console.error('Send message error:', err)
@@ -559,19 +708,70 @@ export default function ChatRoomPage() {
     }
   }
 
-  // Handle mock voice note dispatch
-  const handleToggleRecord = () => {
+  // Handle real voice note recording and upload
+  const handleToggleRecord = async () => {
     if (!isRecording) {
-      setIsRecording(true)
-      setRecordingSeconds(0)
-      recordInterval.current = setInterval(() => {
-        setRecordingSeconds(prev => prev + 1)
-      }, 1000)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        streamRef.current = stream
+
+        const recorder = new MediaRecorder(stream)
+        mediaRecorderRef.current = recorder
+        audioChunksRef.current = []
+
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data)
+          }
+        }
+
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+
+          // Create file upload Form Data
+          const fd = new FormData()
+          fd.append('file', audioBlob, `voice-note-${Date.now()}.webm`)
+
+          try {
+            const up = await fetch('/api/files/upload', { method: 'POST', body: fd })
+            if (up.ok) {
+              const d = await up.json()
+              await sendMsgREST('', d.url, 'audio/webm')
+            } else {
+              console.error('Failed to upload real voice note')
+            }
+          } catch (err) {
+            console.error('Error uploading voice note:', err)
+          }
+          audioChunksRef.current = []
+        }
+
+        recorder.start()
+        setIsRecording(true)
+        setRecordingSeconds(0)
+        recordInterval.current = setInterval(() => {
+          setRecordingSeconds(prev => prev + 1)
+        }, 1000)
+
+      } catch (err) {
+        console.error('Mic permission denied or MediaRecorder error:', err)
+        alert('Please enable microphone access to record voice notes.')
+      }
     } else {
-      clearInterval(recordInterval.current)
+      // Stop timer
+      if (recordInterval.current) clearInterval(recordInterval.current)
       setIsRecording(false)
-      const audioMockUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
-      handleSendFileMsg(audioMockUrl, 'audio/mpeg')
+
+      // Stop recorder
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop()
+      }
+
+      // Stop mic streams to release the device
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
     }
   }
 
@@ -590,9 +790,13 @@ export default function ChatRoomPage() {
   }
 
   const reactMessage = (msgId: string, emoji: string) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('react_message', { chatId, messageId: msgId, emoji })
+    }
+
     setMessages(prev => prev.map(m => {
       if (m.id === msgId) {
-        const reacts = m.reactions || []
+        const reacts = Array.isArray(m.reactions) ? m.reactions : []
         return { ...m, reactions: [...reacts, emoji] }
       }
       return m
@@ -623,23 +827,22 @@ export default function ChatRoomPage() {
       const otherUser = chat.otherParticipant
       if (!otherUser) return false
       const nameMatch = otherUser.name.toLowerCase().includes(searchQuery.toLowerCase())
-      
+
       if (activeCategory === 'unread') return nameMatch && chat.unreadCount > 0
       if (activeCategory === 'favorites') return nameMatch && chat.id.charCodeAt(0) % 2 === 0
       return nameMatch
     })
 
   return (
-    <div className={`min-h-screen font-sans transition-colors duration-500 ${
-      isGlobalDark ? 'bg-[#030712] text-slate-100' : 'bg-slate-55 text-slate-900'
-    }`}>
-      
+    <div className={`min-h-screen font-sans transition-colors duration-500 ${isGlobalDark ? 'bg-[#030712] text-slate-100' : 'bg-slate-55 text-slate-900'
+      }`}>
+
       {/* Background patterns */}
       <div className="absolute inset-0 noise-overlay pointer-events-none z-0" />
 
       {/* Main Split Layout container */}
       <div className="max-w-7xl mx-auto px-4 py-6 h-[95vh] relative z-10 flex gap-6">
-        
+
         {/* LEFT PANEL: Messages Sidebar (Desktop only) */}
         <aside className="hidden lg:flex w-[320px] shrink-0 rounded-3xl border flex-col overflow-hidden shadow-lg bg-[#0b0f19]/80 border-white/5 shadow-glow-violet">
           {/* Sidebar Header */}
@@ -674,9 +877,8 @@ export default function ChatRoomPage() {
                   <button
                     key={tab}
                     onClick={() => setActiveCategory(tab)}
-                    className={`flex-1 py-1 text-[9px] font-black uppercase tracking-wider rounded transition-colors cursor-pointer ${
-                      isActive ? 'bg-white/5 text-violet-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-                    }`}
+                    className={`flex-1 py-1 text-[9px] font-black uppercase tracking-wider rounded transition-colors cursor-pointer ${isActive ? 'bg-white/5 text-violet-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                      }`}
                   >
                     {tab}
                   </button>
@@ -695,11 +897,10 @@ export default function ChatRoomPage() {
                 <div
                   key={c.id}
                   onClick={() => router.push(`/dashboard/chats/${c.id}`)}
-                  className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-2.5 ${
-                    active 
-                      ? 'bg-violet-600/10 border-violet-500/30' 
+                  className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-2.5 ${active
+                      ? 'bg-violet-600/10 border-violet-500/30'
                       : 'bg-transparent border-transparent hover:bg-white/5'
-                  }`}
+                    }`}
                 >
                   <div className="relative shrink-0">
                     {otherUser?.profileImage ? (
@@ -729,18 +930,16 @@ export default function ChatRoomPage() {
         </aside>
 
         {/* RIGHT PANEL: Active conversation view */}
-        <main className={`flex-1 rounded-3xl border overflow-hidden flex flex-col shadow-lg transition-all ${
-          chatTheme.listBg
-        }`}>
-          
+        <main className={`flex-1 rounded-3xl border overflow-hidden flex flex-col shadow-lg transition-all ${chatTheme.listBg
+          }`}>
+
           {/* Conversation Header */}
           <div className="p-4 border-b flex items-center justify-between dark:border-white/5 border-slate-150 shrink-0">
             <div className="flex items-center gap-3">
               <Link
                 href="/dashboard/chats"
-                className={`p-2 rounded-full border transition-all lg:hidden ${
-                  isGlobalDark ? 'bg-slate-900 border-white/5 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
-                }`}
+                className={`p-2 rounded-full border transition-all lg:hidden ${isGlobalDark ? 'bg-slate-900 border-white/5 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
+                  }`}
               >
                 <ArrowLeft className="w-4 h-4" />
               </Link>
@@ -769,9 +968,8 @@ export default function ChatRoomPage() {
             <div className="relative">
               <button
                 onClick={() => setShowThemePicker(!showThemePicker)}
-                className={`p-2 rounded-full border transition-all ${
-                  isGlobalDark ? 'bg-slate-900 border-white/5 text-purple-400 hover:bg-slate-800' : 'bg-white border-slate-200 text-purple-600 hover:bg-slate-50'
-                } cursor-pointer`}
+                className={`p-2 rounded-full border transition-all ${isGlobalDark ? 'bg-slate-900 border-white/5 text-purple-400 hover:bg-slate-800' : 'bg-white border-slate-200 text-purple-600 hover:bg-slate-50'
+                  } cursor-pointer`}
                 title="Select Theme"
               >
                 <Palette className="w-4 h-4" />
@@ -791,11 +989,10 @@ export default function ChatRoomPage() {
                         <button
                           key={themeItem.id}
                           onClick={() => changeTheme(themeItem)}
-                          className={`w-full text-left px-3 py-1.5 text-xs rounded-xl transition-colors cursor-pointer ${
-                            chatTheme.id === themeItem.id 
-                              ? 'bg-violet-600/10 text-violet-400 font-bold' 
+                          className={`w-full text-left px-3 py-1.5 text-xs rounded-xl transition-colors cursor-pointer ${chatTheme.id === themeItem.id
+                              ? 'bg-violet-600/10 text-violet-400 font-bold'
                               : 'hover:bg-white/5'
-                          }`}
+                            }`}
                         >
                           {themeItem.name}
                         </button>
@@ -842,26 +1039,24 @@ export default function ChatRoomPage() {
                   const isVid = m.fileType?.startsWith('video/')
                   const isImg = m.fileType?.startsWith('image/') || m.fileType === 'sticker'
                   const isAudio = m.fileType?.startsWith('audio/')
-                  
+
                   // Read Receipt check based on lastSeenAt
                   const isSeen = isMine && otherLastSeenAt && new Date(m.createdAt) <= new Date(otherLastSeenAt)
 
                   return (
                     <div key={m.id} className={`flex flex-col w-full ${isMine ? 'items-end' : 'items-start'}`}>
-                      <div 
-                        className={`flex items-center gap-2.5 max-w-[80%] group relative ${
-                          isMine ? 'flex-row-reverse' : 'flex-row'
-                        }`}
+                      <div
+                        className={`flex items-center gap-2.5 max-w-[80%] group relative ${isMine ? 'flex-row-reverse' : 'flex-row'
+                          }`}
                         onMouseEnter={() => setBubbleHoverReactionId(m.id)}
                         onMouseLeave={() => setBubbleHoverReactionId(null)}
                       >
-                        
+
                         {/* Message Bubble box */}
-                        <div className={`rounded-3xl px-4 py-3 border border-opacity-10 shadow-sm relative transition-all ${
-                          m.deletedForEveryone 
-                            ? 'bg-slate-100/30 text-slate-400 dark:bg-white/5 dark:text-slate-500 italic border-dashed' 
+                        <div className={`rounded-3xl px-4 py-3 border border-opacity-10 shadow-sm relative transition-all ${m.deletedForEveryone
+                            ? 'bg-slate-100/30 text-slate-400 dark:bg-white/5 dark:text-slate-500 italic border-dashed'
                             : isMine ? chatTheme.sentBubble : chatTheme.receivedBubble
-                        } ${m.sending ? 'opacity-60 duration-150 animate-pulse' : ''}`}>
+                          } ${m.sending ? 'opacity-60 duration-150 animate-pulse' : ''}`}>
                           {m.deletedForEveryone ? (
                             <div className="flex items-center gap-1.5 text-[11px]">
                               <span>🚫 Message deleted for everyone</span>
@@ -874,7 +1069,7 @@ export default function ChatRoomPage() {
                               {/* Rich media attachments */}
                               {m.fileUrl && (
                                 <div className={m.text ? "mt-3" : ""}>
-                                  
+
                                   {isImg && (
                                     <div className="relative overflow-hidden rounded-2xl bg-white/5">
                                       <img
@@ -897,19 +1092,12 @@ export default function ChatRoomPage() {
                                   )}
 
                                   {isAudio && (
-                                    <div className="flex items-center gap-3 py-1.5 px-3 rounded-2xl bg-black/10 text-white">
-                                      <CirclePlay className="w-5 h-5 cursor-pointer shrink-0" />
-                                      <div className="w-24 h-1 bg-white/35 rounded-full overflow-hidden shrink-0">
-                                        <div className="w-3/4 h-full bg-white" />
-                                      </div>
-                                      <span className="text-[10px] shrink-0">Voice note</span>
-                                    </div>
+                                    <AudioPlayer src={m.fileUrl} />
                                   )}
 
                                   {isDoc && (
-                                    <div className={`flex items-center gap-2.5 p-2.5 rounded-2xl border text-left ${
-                                      isMine ? 'bg-black/10 border-white/10' : 'bg-slate-55 dark:bg-slate-900 border-slate-200 dark:border-white/5'
-                                    }`}>
+                                    <div className={`flex items-center gap-2.5 p-2.5 rounded-2xl border text-left ${isMine ? 'bg-black/10 border-white/10' : 'bg-slate-55 dark:bg-slate-900 border-slate-200 dark:border-white/5'
+                                      }`}>
                                       <FileText className="w-5 h-5 text-indigo-400 shrink-0" />
                                       <div className="min-w-0 flex-1">
                                         <p className="text-xs font-bold truncate text-slate-800 dark:text-slate-200">
@@ -939,18 +1127,17 @@ export default function ChatRoomPage() {
 
                         {/* Micro-interaction controls on hover */}
                         {!m.deletedForEveryone && !m.sending && bubbleHoverReactionId === m.id && (
-                          <div className={`flex gap-1.5 items-center absolute z-25 ${
-                            isMine ? '-left-16' : '-right-16'
-                          } bg-slate-900 border border-white/10 px-2 py-1.5 rounded-full shadow-xl animate-fade-in`}>
-                            
-                            <button 
+                          <div className={`flex gap-1.5 items-center absolute z-25 ${isMine ? '-left-16' : '-right-16'
+                            } bg-slate-900 border border-white/10 px-2 py-1.5 rounded-full shadow-xl animate-fade-in`}>
+
+                            <button
                               onClick={() => reactMessage(m.id, '❤️')}
                               className="hover:scale-120 transition text-xs cursor-pointer"
                             >
                               ❤️
                             </button>
-                            
-                            <button 
+
+                            <button
                               onClick={() => reactMessage(m.id, '👍')}
                               className="hover:scale-120 transition text-xs cursor-pointer"
                             >
@@ -1006,7 +1193,7 @@ export default function ChatRoomPage() {
           {/* Stickers/GIFs/Emojis Picker window drawer */}
           <AnimatePresence>
             {showPickerPanel && (
-              <motion.div 
+              <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -1018,9 +1205,8 @@ export default function ChatRoomPage() {
                       <button
                         key={tab}
                         onClick={() => setActivePickerTab(tab)}
-                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
-                          activePickerTab === tab ? 'bg-violet-650 text-white' : 'text-slate-400 hover:text-white'
-                        }`}
+                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${activePickerTab === tab ? 'bg-violet-650 text-white' : 'text-slate-400 hover:text-white'
+                          }`}
                       >
                         {tab === 'emoji' ? '😊 Emojis' : tab === 'gif' ? '🎬 GIFs' : '🎨 Stickers'}
                       </button>
@@ -1080,7 +1266,7 @@ export default function ChatRoomPage() {
           {/* Voice note simulated indicator */}
           <AnimatePresence>
             {isRecording && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -1099,9 +1285,8 @@ export default function ChatRoomPage() {
           <div className="p-4 border-t border-slate-150 dark:border-white/5 flex gap-2.5 items-center shrink-0">
             <button
               onClick={() => setShowPickerPanel(!showPickerPanel)}
-              className={`p-2.5 rounded-full border transition-all ${
-                isGlobalDark ? 'bg-slate-900 border-white/5 text-slate-350 hover:bg-slate-800' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-              } cursor-pointer`}
+              className={`p-2.5 rounded-full border transition-all ${isGlobalDark ? 'bg-slate-900 border-white/5 text-slate-350 hover:bg-slate-800' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                } cursor-pointer`}
               title="Add Sticker / Emoji"
             >
               <Smile className="w-4.5 h-4.5" />
@@ -1121,17 +1306,16 @@ export default function ChatRoomPage() {
                 }}
                 placeholder={fileNameText ? `File attached: ${fileNameText}` : "Message..."}
                 disabled={uploading}
-                className={`w-full pl-4 pr-12 py-3 text-xs border rounded-2xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder-slate-500 transition-all ${
-                  chatTheme.inputBg
-                }`}
+                className={`w-full pl-4 pr-12 py-3 text-xs border rounded-2xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder-slate-500 transition-all ${chatTheme.inputBg
+                  }`}
               />
 
               <label className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-slate-500 hover:text-slate-300">
                 <Paperclip className="w-4.5 h-4.5" />
-                <input 
-                  type="file" 
-                  onChange={handleFileChange} 
-                  className="hidden" 
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  className="hidden"
                   disabled={uploading}
                 />
               </label>
@@ -1140,11 +1324,10 @@ export default function ChatRoomPage() {
             {/* Mic / Voice Message Trigger */}
             <button
               onClick={handleToggleRecord}
-              className={`p-2.5 rounded-full border transition-all ${
-                isRecording
+              className={`p-2.5 rounded-full border transition-all ${isRecording
                   ? 'bg-rose-600/15 border-rose-500/30 text-rose-400 hover:bg-rose-600/20'
                   : isGlobalDark ? 'bg-slate-900 border-white/5 text-slate-350 hover:bg-slate-850' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-150'
-              } cursor-pointer`}
+                } cursor-pointer`}
               title={isRecording ? 'Stop & Send Recording' : 'Record Voice Note'}
             >
               <Mic className="w-4.5 h-4.5" />
@@ -1172,7 +1355,7 @@ export default function ChatRoomPage() {
               onClick={() => setSelectedDeleteMessage(null)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            
+
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -1193,7 +1376,7 @@ export default function ChatRoomPage() {
                     Delete for Everyone
                   </button>
                 )}
-                
+
                 <button
                   onClick={() => handleDeleteMessage('me')}
                   className="w-full py-2.5 bg-slate-900 border border-white/5 text-slate-300 rounded-xl font-semibold text-xs hover:bg-slate-800 transition cursor-pointer"

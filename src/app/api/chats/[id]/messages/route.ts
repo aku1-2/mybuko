@@ -36,7 +36,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         fileType: true,
         createdAt: true,
         senderId: true,
-        deletedForEveryone: true
+        deletedForEveryone: true,
+        reactions: true
       }
     }
 
@@ -113,6 +114,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         createdAt: true,
         senderId: true,
         deletedForEveryone: true,
+        reactions: true,
         sender: {
           select: {
             id: true,

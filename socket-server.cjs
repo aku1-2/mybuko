@@ -174,7 +174,6 @@ io.on('connection', (socket) => {
       const allParts = await prisma.chatParticipant.findMany({
         where: { chatId }
       });
-      
       allParts.forEach(p => {
         io.emit(`chat_list_update:${p.userId}`, {
           chatId,
@@ -182,10 +181,65 @@ io.on('connection', (socket) => {
           updatedAt: now
         });
       });
-
     } catch (err) {
       console.error('Error in send_message socket handler:', err);
       socket.emit('error_message', { error: 'Failed to deliver message' });
+    }
+  });
+
+  // 3.5. Broadcast Saved Message (sent via REST)
+  socket.on('broadcast_saved_message', ({ chatId, message }) => {
+    if (!chatId || !message) return;
+
+    // Broadcast message to other room participants in real-time
+    socket.to(chatId).emit('message', message);
+
+    // Update the chat list for all participants
+    const now = new Date();
+    prisma.chatParticipant.findMany({
+      where: { chatId }
+    }).then(allParts => {
+      allParts.forEach(p => {
+        io.emit(`chat_list_update:${p.userId}`, {
+          chatId,
+          lastMessage: message,
+          updatedAt: now
+        });
+      });
+    }).catch(err => {
+      console.error('Error in broadcast_saved_message list update:', err);
+    });
+  });
+
+  // 3.7. Message Reactions
+  socket.on('react_message', async ({ chatId, messageId, emoji }) => {
+    if (!chatId || !messageId || !emoji) return;
+
+    try {
+      // 1. Fetch current message reactions
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+        select: { reactions: true }
+      });
+
+      if (!message) return;
+
+      // 2. Append new reaction
+      const currentReactions = message.reactions ? message.reactions.split(',').filter(Boolean) : [];
+      currentReactions.push(emoji);
+      const updatedReactions = currentReactions.join(',');
+
+      // 3. Update database
+      await prisma.message.update({
+        where: { id: messageId },
+        data: { reactions: updatedReactions }
+      });
+
+      // 4. Broadcast the reaction in real-time to everyone else in the room
+      socket.to(chatId).emit('message_reaction', { messageId, emoji });
+
+    } catch (err) {
+      console.error('Error handling message reaction:', err);
     }
   });
 

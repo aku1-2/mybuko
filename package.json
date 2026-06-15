@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev & node socket-server.cjs",
+    "dev": "node run-dev.cjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."
