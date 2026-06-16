@@ -39,7 +39,7 @@ const server = http.createServer((req, res) => {
 
 const io = new Server(server, {
   cors: {
-    origin: '*', // Allow connections from frontend
+    origin: process.env.CLIENT_URL || '*',
     methods: ['GET', 'POST']
   }
 });
@@ -290,3 +290,17 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`WebSocket server listening on port ${PORT}`);
 });
+
+// Graceful shutdown handlers
+const gracefulShutdown = async (signal) => {
+  console.log(`Received ${signal}. Shutting down gracefully...`);
+  server.close(async () => {
+    console.log('HTTP/WebSocket server closed.');
+    await prisma.$disconnect();
+    console.log('Prisma connection disconnected.');
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
