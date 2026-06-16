@@ -85,7 +85,7 @@ io.on('connection', (socket) => {
 
       socket.join(chatId);
       console.log(`Socket ${socket.id} joined room: ${chatId}`);
-      
+
       // Update lastSeenAt for this participant on join
       const now = new Date();
       await prisma.chatParticipant.update({
@@ -286,7 +286,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`WebSocket server listening on port ${PORT}`);
 });
