@@ -43,19 +43,9 @@ export async function GET(req: NextRequest) {
         streak
       }
     })
-    // Sort by XP descending, and filter out users with 0 goals/XP to keep it clean
-    .filter(u => u.xp > 0)
+    // Sort by XP descending
     .sort((a, b) => b.xp - a.xp)
     .slice(0, 5)
-
-    // Fallback if database has no goals logged yet
-    if (leaderboard.length === 0) {
-      return NextResponse.json([
-        { id: '1', name: 'Aman R.', xp: 2800, streak: 12 },
-        { id: '2', name: 'Neha K.', xp: 1950, streak: 8 },
-        { id: '3', name: 'Rahul S.', xp: 1200, streak: 5 }
-      ])
-    }
 
     return NextResponse.json(leaderboard)
   } catch (err) {

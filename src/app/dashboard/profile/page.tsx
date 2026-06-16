@@ -75,7 +75,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [goals, setGoals] = useState<any[]>([])
-  const [streak, setStreak] = useState<number>(7)
+  const [streak, setStreak] = useState<number>(0)
   const [stats, setStats] = useState({
     totalGoals: 0,
     completedGoals: 0,
@@ -228,6 +228,9 @@ export default function ProfilePage() {
           inProgressGoals,
           completionRate
         })
+        const calculatedStreak = merged.length > 0 ? Math.min(60, merged.length * 4 + completedGoals * 6) : 0
+        setStreak(calculatedStreak)
+        localStorage.setItem('mybuko-streak', String(calculatedStreak))
         setIsLoaded(true)
       } catch (error) {
         console.error('Error fetching profile stats:', error)
@@ -256,6 +259,8 @@ export default function ProfilePage() {
       const saved = localStorage.getItem('mybuko-streak')
       if (saved) {
         setStreak(parseInt(saved, 10))
+      } else {
+        setStreak(0)
       }
     }
 

@@ -67,11 +67,10 @@ export default function AddGoalPage() {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
 
-  // Dynamic user stats from DB
   const [userStats, setUserStats] = useState({
     totalCount: 0,
     completedCount: 0,
-    streak: 7,
+    streak: 0,
     level: 1
   })
 
@@ -113,12 +112,12 @@ export default function AddGoalPage() {
           const data = await res.json()
           const total = data.length
           const completed = data.filter((g: any) => g.status === 'Completed').length
-          const savedStreak = localStorage.getItem('mybuko-streak')
-          const streakVal = savedStreak ? parseInt(savedStreak, 10) : 7
+          const calculatedStreak = data && data.length > 0 ? Math.min(60, data.length * 4 + completed * 6) : 0
+          localStorage.setItem('mybuko-streak', String(calculatedStreak))
           setUserStats({
             totalCount: total,
             completedCount: completed,
-            streak: streakVal,
+            streak: calculatedStreak,
             level: Math.floor(completed / 3) + 1
           })
         }

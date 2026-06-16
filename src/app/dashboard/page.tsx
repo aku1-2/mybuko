@@ -131,7 +131,7 @@ export default function DashboardPage() {
   const [noteInputs, setNoteInputs] = useState<Record<string, string>>({})
 
   // New Feature States
-  const [streak, setStreak] = useState(7)
+  const [streak, setStreak] = useState(0)
   const [quoteIdx, setQuoteIdx] = useState(0)
   const [monthlyTarget, setMonthlyTarget] = useState(2) // Target goals to complete this month
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
@@ -247,7 +247,8 @@ export default function DashboardPage() {
       if (saved) {
         setStreak(parseInt(saved, 10))
       } else {
-        localStorage.setItem('mybuko-streak', '7')
+        localStorage.setItem('mybuko-streak', '0')
+        setStreak(0)
       }
       setQuoteIdx(new Date().getDate() % INSPIRATIONAL_QUOTES.length)
     }
@@ -277,6 +278,9 @@ export default function DashboardPage() {
         }
         setGoals(merged)
         setFilteredGoals(merged)
+        const calculatedStreak = merged.length > 0 ? Math.min(60, merged.length * 4 + merged.filter((g: any) => g.status === 'Completed').length * 6) : 0
+        setStreak(calculatedStreak)
+        localStorage.setItem('mybuko-streak', String(calculatedStreak))
       } else if (res.status === 401) {
         localStorage.removeItem('token')
         localStorage.removeItem('user')

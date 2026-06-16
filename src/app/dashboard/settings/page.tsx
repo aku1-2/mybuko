@@ -21,7 +21,7 @@ export default function SettingsPage() {
   // States
   const [user, setUser] = useState<any>(null)
   const [goals, setGoals] = useState<any[]>([])
-  const [streak, setStreak] = useState(7)
+  const [streak, setStreak] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
   const [followingIds, setFollowingIds] = useState<string[]>([])
   const [loadingNotifs, setLoadingNotifs] = useState(false)
@@ -94,6 +94,9 @@ export default function SettingsPage() {
       if (res.ok) {
         const data = await res.json()
         setGoals(data || [])
+        const calculatedStreak = data && data.length > 0 ? Math.min(60, data.length * 4 + data.filter((g: any) => g.status === 'Completed').length * 6) : 0
+        setStreak(calculatedStreak)
+        localStorage.setItem('mybuko-streak', String(calculatedStreak))
       }
     } catch (err) {
       console.error(err)
@@ -120,6 +123,8 @@ export default function SettingsPage() {
     const savedStreak = localStorage.getItem('mybuko-streak')
     if (savedStreak) {
       setStreak(parseInt(savedStreak, 10))
+    } else {
+      setStreak(0)
     }
 
     fetchNotifications()
