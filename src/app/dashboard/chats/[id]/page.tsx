@@ -85,11 +85,16 @@ const MOCK_STICKERS = [
 ]
 
 const MOCK_GIF_REACTIONS = [
-  { id: 'gif1', name: 'Congratulations', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3hveXZwZTFkbG82cTRlOWZpd25mNzI1cG9iNTR3b3I1NGtqYWJxbSZlcD12MV9pbnRlcm5hbF9naWZfYnlfZ2lmcyZnaWZfaWQ9M29jRDR5R2pPZ3U3RzlHZWw2JmN0PWc/3ocD4yGjOgu7G9Gel6/giphy.gif' },
-  { id: 'gif2', name: 'Celebration Dance', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2RmcHBrczM5ajk2eHlsMzRkMTQzdG44bnB1MjdseHYwZnBwYXFnbSZlcD12MV9pbnRlcm5hbF9naWZfYnlfZ2lmcyZnaWZfaWQ9MmRkNzE5YTItY2ExNy00MGNkLWJiNzQtNjZmNGZjNTMyNTRmJmN0PWc/l3vRlTKuRxCwpSVQQ/giphy.gif' },
-  { id: 'gif3', name: 'Success Goal', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbm41cTV4eGJkMTFjZjBncjcycWphMW9ocGNpNDNzYzJleDhhMnVwMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfZ2lmcyZnaWZfaWQ9cTdPdzU4eExyMUpzNCZjdD1n/q7Ow58xLr1Js4/giphy.gif' },
-  { id: 'gif4', name: 'Thumbs Up Work', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNmtoc3EzaDh3MDhzMnNpOXc1czBveDZpdm0yMXJidWd1NGdudWdyaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfZ2lmcyZnaWZfaWQ9MTExYTkxYTgtZmQ4MC00MmJmLTk5Y2YtNmRjNTExNTg4NGVlJmN0PWc/1236TCtCO5dsGE/giphy.gif' },
-  { id: 'gif5', name: 'High Five Team', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDVqdWg0ZWhlOWQzaWF0bHFsdWlyNm5tZmszMWV2bmpycGdzajR4NiZlcD12MV9pbnRlcm5hbF9naWZfYnlfZ2lmcyZnaWZfaWQ9MzA2Mjg3MCZjdD1n/3oEjHV0zqZuR596caa/giphy.gif' }
+  { id: 'gif1', name: 'Congratulations', url: 'https://i.giphy.com/3ocD4yGjOgu7G9Gel6.gif' },
+  { id: 'gif2', name: 'Celebration Dance', url: 'https://i.giphy.com/l3vRlTKuRxCwpSVQQ.gif' },
+  { id: 'gif3', name: 'Success Goal', url: 'https://i.giphy.com/q7Ow58xLr1Js4.gif' },
+  { id: 'gif4', name: 'Thumbs Up Work', url: 'https://i.giphy.com/1236TCtCO5dsGE.gif' },
+  { id: 'gif5', name: 'High Five Team', url: 'https://i.giphy.com/3oEjHV0zqZuR596caa.gif' },
+  { id: 'gif6', name: 'Celebration Confetti', url: 'https://i.giphy.com/l41YkxvU8c7J7B9a8.gif' },
+  { id: 'gif7', name: 'Minions Happy', url: 'https://i.giphy.com/Is1O1TWVgtg4c.gif' },
+  { id: 'gif8', name: 'Success Yes', url: 'https://i.giphy.com/chzz1FQgqhytWRWbp3.gif' },
+  { id: 'gif9', name: 'Rocket Launch', url: 'https://i.giphy.com/txlxp5iSp6IE8.gif' },
+  { id: 'gif10', name: 'Winner Trophy', url: 'https://i.giphy.com/2s1152aX1xN1S.gif' }
 ]
 
 const POPULAR_EMOJIS = [
