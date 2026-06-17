@@ -1274,7 +1274,6 @@ export default function FinancePlannerPage() {
                     <MessageSquare className="w-4.5 h-4.5 text-violet-400 animate-pulse" />
                     AI Financial Coach
                   </h3>
-                  <span className="text-[9px] text-slate-800 dark:text-slate-200">Real-time answers driven by Llama-3.1 AI</span>
                 </div>
 
                 {/* Messages Panel */}
