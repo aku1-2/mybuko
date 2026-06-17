@@ -873,7 +873,8 @@ export default function ProfilePage() {
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="sm:hidden">Dashboard</span>
           </Link>
 
           <div className="flex items-center gap-3">
@@ -886,7 +887,7 @@ export default function ProfilePage() {
               }`}
             >
               <MessageSquare className="w-4 h-4 text-indigo-500" />
-              Chats
+              <span className="hidden sm:inline">Chats</span>
             </Link>
             <Link
               href="/dashboard?tab=community"
@@ -897,7 +898,7 @@ export default function ProfilePage() {
               }`}
             >
               <Globe className="w-4 h-4 text-cyan-500" />
-              Community
+              <span className="hidden sm:inline">Community</span>
             </Link>
 
             <button
@@ -1034,14 +1035,14 @@ export default function ProfilePage() {
         <div className="grid gap-8 lg:grid-cols-[1.2fr,1.8fr]">
           
           {/* LEFT COLUMN: BIO, STREAKS, MEMORIES */}
-          <div className="space-y-8">
+          <div className="space-y-8 min-w-0">
             
             {/* BIO & QUICK DETAILS */}
             <motion.div 
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className={`rounded-3xl border p-6 ${
+              className={`rounded-3xl border p-4 sm:p-6 ${
                 isDark ? 'bg-slate-900/40 border-white/5 backdrop-blur-xl' : 'bg-white border-slate-200/80 shadow-md'
               }`}
             >
@@ -1106,7 +1107,7 @@ export default function ProfilePage() {
             </motion.div>
 
             {/* PROFILE COMPLETENESS WIDGET */}
-            <div className={`rounded-3xl border p-6 ${
+            <div className={`rounded-3xl border p-4 sm:p-6 ${
               isDark ? 'bg-slate-900/40 border-white/5 backdrop-blur-xl' : 'bg-white border-slate-200/80 shadow-md'
             }`}>
               <h3 className="text-base font-bold font-display flex items-center gap-2 mb-3">
@@ -1147,7 +1148,7 @@ export default function ProfilePage() {
             </div>
 
             {/* STREAK STATUS WIDGET */}
-            <div className={`rounded-3xl border p-6 ${
+            <div className={`rounded-3xl border p-4 sm:p-6 ${
               isDark ? 'bg-slate-900/40 border-white/5 backdrop-blur-xl' : 'bg-white border-slate-200/80 shadow-md'
             }`}>
               <div className="flex items-center justify-between mb-4">
@@ -1173,11 +1174,11 @@ export default function ProfilePage() {
               </div>
 
               {/* Weekly active calendar */}
-              <div className="grid grid-cols-7 gap-2 text-center">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center">
                 {weeklyCalendarDays.map((day, idx) => (
                   <div 
                     key={idx} 
-                    className={`p-2 rounded-xl flex flex-col items-center gap-1 border transition-all ${
+                    className={`p-1 sm:p-2 rounded-xl flex flex-col items-center gap-1 border transition-all ${
                       day.active 
                         ? 'bg-orange-500/10 border-orange-500/30 text-orange-550' 
                         : day.isToday 
@@ -1199,7 +1200,7 @@ export default function ProfilePage() {
             </div>
 
             {/* MEMORY GALLERY */}
-            <div className={`rounded-3xl border p-6 ${
+            <div className={`rounded-3xl border p-4 sm:p-6 ${
               isDark ? 'bg-slate-900/40 border-white/5 backdrop-blur-xl' : 'bg-white border-slate-200/80 shadow-md'
             }`}>
               <div className="flex items-center justify-between mb-4">
@@ -1345,7 +1346,7 @@ export default function ProfilePage() {
           </div>
 
           {/* RIGHT COLUMN: STATS, BADGES, VISION BOARD, TIMELINES */}
-          <div className="space-y-8">
+          <div className="space-y-8 min-w-0">
             
             {/* STAT CARDS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -1388,7 +1389,7 @@ export default function ProfilePage() {
             </div>
 
             {/* COLLECTIBLE ACHIEVEMENTS / BADGES */}
-            <div className={`rounded-3xl border p-6 ${
+            <div className={`rounded-3xl border p-4 sm:p-6 ${
               isDark ? 'bg-slate-900/40 border-white/5 backdrop-blur-xl' : 'bg-white border-slate-200/80 shadow-md'
             }`}>
               <div className="flex items-center justify-between mb-6">
@@ -1399,7 +1400,7 @@ export default function ProfilePage() {
                 <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Click to Pin Favorite</span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {achievementsList.map((badge) => {
                   const isPinned = pinnedBadgeId === badge.id
                   return (

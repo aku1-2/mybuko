@@ -841,7 +841,7 @@ export default function ChatRoomPage() {
       <div className="absolute inset-0 noise-overlay pointer-events-none z-0" />
 
       {/* Main Split Layout container */}
-      <div className="max-w-7xl mx-auto px-4 py-6 h-[95vh] relative z-10 flex gap-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 h-[95vh] relative z-10 flex flex-col lg:flex-row gap-6">
 
         {/* LEFT PANEL: Messages Sidebar (Desktop only) */}
         <aside className="hidden lg:flex w-[320px] shrink-0 rounded-3xl border flex-col overflow-hidden shadow-lg bg-[#0b0f19]/80 border-white/5 shadow-glow-violet">
@@ -930,7 +930,7 @@ export default function ChatRoomPage() {
         </aside>
 
         {/* RIGHT PANEL: Active conversation view */}
-        <main className={`flex-1 rounded-3xl border overflow-hidden flex flex-col shadow-lg transition-all ${chatTheme.listBg
+        <main className={`flex-1 min-w-0 rounded-3xl border overflow-hidden flex flex-col shadow-lg transition-all ${chatTheme.listBg
           }`}>
 
           {/* Conversation Header */}

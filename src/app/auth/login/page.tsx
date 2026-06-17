@@ -631,7 +631,7 @@ function LoginContent() {
                   </AnimatePresence>
 
                   {/* 6-digit cells */}
-                  <div className="flex justify-between gap-2.5">
+                  <div className="flex justify-between gap-1.5 sm:gap-2.5">
                     {otpDigits.map((digit, index) => (
                       <input
                         key={index}
@@ -644,7 +644,7 @@ function LoginContent() {
                         onChange={e => handleOtpDigitChange(index, e.target.value)}
                         onKeyDown={e => handleOtpKeyDown(index, e)}
                         onPaste={index === 0 ? handleOtpPaste : undefined}
-                        className="w-12 h-14 text-center text-xl font-bold bg-slate-900/60 border border-white/10 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-white font-mono"
+                        className="w-9 h-11 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold bg-slate-900/60 border border-white/10 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-white font-mono"
                         disabled={isLoading}
                         autoFocus={index === 0}
                       />

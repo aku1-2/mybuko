@@ -9,3 +9,16 @@
 [2026-06-15T12:39:17.883Z] Email: khannamishthi66@gmail.com | OTP: 785176 | Purpose: register
 [2026-06-15T12:40:02.103Z] Email: khannamishthi66@gmail.com | OTP: 277759 | Purpose: register
 [2026-06-16T07:49:58.804Z] Email: giriiiakansksha@gmail.com | OTP: 111446 | Purpose: register
+[2026-06-16T17:37:22.789Z] Email: test@example.com | OTP: 657426 | Purpose: register
+[2026-06-16T17:39:44.780Z] Email: test@example.com | OTP: 910653 | Purpose: register
+[2026-06-16T17:41:35.009Z] Email: test@example.com | OTP: 712685 | Purpose: register
+[2026-06-16T17:45:26.300Z] Email: test@example.com | OTP: 848046 | Purpose: register
+[2026-06-16T17:47:01.540Z] Email: test@example.com | OTP: 899315 | Purpose: register
+[2026-06-16T17:48:00.159Z] Email: test@example.com | OTP: 629395 | Purpose: register
+[2026-06-16T17:53:09.571Z] Email: test2@example.com | OTP: 904528 | Purpose: register
+[2026-06-16T17:55:41.844Z] Email: test2@example.com | OTP: 573344 | Purpose: register
+[2026-06-16T17:57:52.203Z] Email: test2@example.com | OTP: 493953 | Purpose: register
+[2026-06-16T17:59:37.099Z] Email: test2@example.com | OTP: 679499 | Purpose: register
+[2026-06-16T18:01:49.614Z] Email: test2@example.com | OTP: 740113 | Purpose: register
+[2026-06-16T18:04:47.878Z] Email: test2@example.com | OTP: 978513 | Purpose: register
+[2026-06-16T18:05:18.854Z] Email: test2@example.com | OTP: 569761 | Purpose: register

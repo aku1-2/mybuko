@@ -842,9 +842,11 @@ export default function DashboardPage() {
   })()
 
   // Similar goals dynamically compiled from explore database route
-  const displayAchievements = similarAchievements.length > 0
-    ? similarAchievements
-        .filter(g => !user || g.user?.email !== user.email)
+  const filteredAchievements = similarAchievements.filter(g => !user || g.user?.email !== user.email)
+  const achievementsToDisplay = filteredAchievements.length > 0 ? filteredAchievements : similarAchievements
+
+  const displayAchievements = achievementsToDisplay.length > 0
+    ? achievementsToDisplay
         .slice(0, 3)
         .map(g => {
           const name = g.user?.name || 'Dreamer'
@@ -1078,13 +1080,13 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 space-y-8">
         
         {/* PREMIUM WELCOME HERO SECTION */}
-        <section className={`relative rounded-[36px] overflow-hidden border p-8 lg:p-10 shadow-2xl transition-all duration-300 ${isDark ? 'border-white/10 bg-slate-900/40 backdrop-blur-2xl' : 'border-slate-200 bg-white'}`}>
+        <section className={`relative rounded-3xl sm:rounded-[36px] overflow-hidden border p-4 sm:p-8 lg:p-10 shadow-2xl transition-all duration-300 ${isDark ? 'border-white/10 bg-slate-900/40 backdrop-blur-2xl' : 'border-slate-200 bg-white'}`}>
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
           
           <div className="grid lg:grid-cols-[2fr,1.1fr] gap-8 items-center">
             
             {/* User Greeting & Stats summary */}
-            <div className="space-y-6">
+            <div className="space-y-6 min-w-0">
               <div className="space-y-2">
                 <div className={`inline-flex items-center gap-2 px-3 py-1 border rounded-full text-xs font-bold transition-colors duration-300 ${
                   isDark ? 'bg-white/5 border-white/10 text-indigo-300' : 'bg-indigo-50 border-indigo-100 text-indigo-650'
@@ -1128,7 +1130,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Circular Progress Rings and Dream Score Gauge */}
-            <div className={`flex flex-col sm:flex-row items-center justify-center gap-8 border rounded-3xl p-6 backdrop-blur-md transition-colors duration-300 ${
+            <div className={`flex flex-col sm:flex-row items-center justify-center gap-8 border rounded-3xl p-6 backdrop-blur-md transition-colors duration-300 min-w-0 ${
               isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50/50 border-slate-200/60'
             }`}>
               
@@ -1305,7 +1307,7 @@ export default function DashboardPage() {
         }`}>
           
           {/* LEFT/MAIN COLUMN: ACTIVE WORKSPACE TAB CARDS */}
-          <div className="space-y-6">
+          <div className="space-y-6 min-w-0">
             
             {/* Filter, Search & Tab switches */}
             <div className={`rounded-2xl border p-4 flex flex-wrap gap-4 items-center justify-between backdrop-blur-xl transition-all duration-300 ${
@@ -1877,7 +1879,7 @@ export default function DashboardPage() {
 
           {/* RIGHT COLUMN: LIFE COMMAND WIDGETS (Render only on Dreams tab) */}
           {activeTab === 'goals' && (
-            <div className="space-y-6">
+            <div className="space-y-6 min-w-0">
               
               {/* PERSONAL ANALYTICS CARD */}
               <div id="personal-analytics-section" className={`rounded-3xl border p-6 shadow-xl space-y-5 transition-all duration-300 ${

@@ -326,7 +326,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
             
             {/* Animated Tab Pills Navigation */}
-            <div className={`rounded-2xl border p-2 flex flex-wrap gap-2 items-center backdrop-blur-md transition-all shadow-sm ${
+            <div className={`rounded-2xl border p-2 flex overflow-x-auto gap-2 items-center backdrop-blur-md transition-all shadow-sm scrollbar-hide select-none ${
               isDark ? 'border-white/5 bg-[#030712]/60' : 'border-slate-200 bg-white'
             }`}>
               {[
@@ -341,7 +341,7 @@ export default function SettingsPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className="relative px-4.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-2 cursor-pointer"
+                    className="relative px-4.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 flex items-center gap-2 cursor-pointer shrink-0"
                   >
                     {isActive && (
                       <motion.div 

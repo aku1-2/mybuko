@@ -340,7 +340,7 @@ export default function UserProfilePage() {
         <div className="grid gap-8 lg:grid-cols-[1.2fr,1.8fr]">
           
           {/* Left Column: Avatar & Bio */}
-          <div className="space-y-8">
+          <div className="space-y-8 min-w-0">
             
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
@@ -437,7 +437,7 @@ export default function UserProfilePage() {
           </div>
 
           {/* Right Column: Statistics, Socials, Achievements, explore Feed */}
-          <div className="space-y-8">
+          <div className="space-y-8 min-w-0">
             
             {/* Stats Metrics Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

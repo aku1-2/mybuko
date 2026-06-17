@@ -329,7 +329,7 @@ export default function LandingPage() {
                                 Turn dreams into experiences
                             </div>
 
-                            <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15] font-display">
+                            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15] font-display">
                                 Stop collecting wishes.<br />
                                 <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent">
                                     Start creating memories.

@@ -40,9 +40,9 @@ function PostCarousel({ imageSource }: { imageSource: string }) {
   }
 
   return (
-    <div className="relative w-full max-h-[500px] overflow-hidden border-y border-slate-100 dark:border-white/5 bg-slate-950/30 flex flex-col items-center justify-center group">
+    <div className="relative w-full sm:w-72 md:w-80 lg:w-96 shrink-0 max-h-[500px] overflow-hidden border-y border-slate-100 dark:border-white/5 bg-slate-950/30 flex flex-col items-center justify-center group mx-auto">
       {/* Image container */}
-      <div className="w-full h-[320px] sm:h-[420px] flex items-center justify-center bg-black/40">
+      <div className="w-full h-[240px] sm:h-[280px] flex items-center justify-center bg-black/40">
         <img 
           src={images[activeIndex]} 
           className="max-w-full max-h-full object-contain" 
@@ -871,7 +871,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
       <div className={`grid grid-cols-1 lg:grid-cols-12 gap-10 items-start ${!isLoggedIn ? 'filter blur-md select-none pointer-events-none opacity-40' : ''}`}>
         
         {/* LEFT COMPONENT: Primary feed (8 cols) */}
-        <main className="lg:col-span-8 flex flex-col gap-8">
+        <main className="lg:col-span-8 flex flex-col gap-8 min-w-0">
           
           {/* Create Post Card */}
           <div className="rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-6 shadow-sm space-y-4">
@@ -1163,7 +1163,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
         </main>
 
         {/* RIGHT COMPONENT: Consolidated stacked side widgets (4 cols) */}
-        <aside className="lg:col-span-4 flex flex-col gap-8 lg:sticky lg:top-24">
+        <aside className="lg:col-span-4 flex flex-col gap-8 lg:sticky lg:top-24 min-w-0">
           
           {/* Weekly Contributor Leaderboard (PODIUM STYLE) */}
           <div className="rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-5 shadow-sm space-y-4">

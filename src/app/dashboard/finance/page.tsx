@@ -580,7 +580,7 @@ export default function FinancePlannerPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* LEFT COLUMN: VISUALIZATIONS & LOGS (8 cols) */}
-            <div className="lg:col-span-8 space-y-8">
+            <div className="lg:col-span-8 space-y-8 min-w-0">
               
               {/* Main Wallet and Progress Overview */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1041,7 +1041,7 @@ export default function FinancePlannerPage() {
             </div>
 
             {/* RIGHT COLUMN: SIMULATORS, CONVERTER & AI COACH (4 cols) */}
-            <div className="lg:col-span-4 space-y-8">
+            <div className="lg:col-span-4 space-y-8 min-w-0">
               
               {/* 1. What-If Budget Simulator */}
               <div className={`rounded-3xl border p-6 space-y-5 ${

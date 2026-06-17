@@ -136,21 +136,21 @@ export default function ExplorePage() {
 
       {/* Header Navigation */}
       <header className="sticky top-0 z-40 border-b backdrop-blur-xl bg-white/70 border-slate-200/80 dark:border-white/5 dark:bg-[#030712]/70 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-2">
           <Link
             href="/"
-            className={`group inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold tracking-wide uppercase transition-all duration-300 ${
+            className={`group inline-flex items-center gap-2 rounded-full border px-3 sm:px-4 py-2 text-xs font-semibold tracking-wide uppercase transition-all duration-300 ${
               isDark 
                 ? 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:border-white/20' 
                 : 'border-slate-200 bg-white text-slate-650 hover:bg-slate-50 hover:border-slate-300'
             }`}
           >
             <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
-            Back to Home
+            <span className="hidden sm:inline">Back to Home</span>
           </Link>
 
-          <div className="flex items-center gap-6 relative">
-            <h1 className="text-sm font-extrabold tracking-[0.3em] uppercase bg-gradient-to-r from-violet-600 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">
+          <div className="flex items-center gap-3 sm:gap-6 relative">
+            <h1 className="text-xs sm:text-sm font-extrabold tracking-[0.1em] sm:tracking-[0.3em] uppercase bg-gradient-to-r from-violet-600 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">
               Community Hub
             </h1>
 
@@ -287,40 +287,40 @@ export default function ExplorePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="grid grid-cols-3 gap-3 max-w-2xl mx-auto pt-6"
+              className="grid grid-cols-3 gap-2 sm:gap-3 max-w-2xl mx-auto pt-6"
             >
-              <div className={`p-4 rounded-2xl border text-center transition-all ${
+              <div className={`p-2 sm:p-4 rounded-xl sm:rounded-2xl border text-center transition-all ${
                 isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-white border-slate-100 hover:shadow-md'
               }`}>
                 <div className="flex items-center justify-center mb-1">
-                  <Users className="w-4 h-4 text-violet-500 mr-1.5" />
-                  <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Active</span>
+                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-500 mr-1 sm:mr-1.5 shrink-0" />
+                  <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-slate-400 uppercase">Active</span>
                 </div>
-                <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-satoshi">
+                <p className="text-xs sm:text-lg md:text-2xl font-black text-slate-900 dark:text-white font-satoshi">
                   {stats.activeNow.toLocaleString()}
                 </p>
               </div>
 
-              <div className={`p-4 rounded-2xl border text-center transition-all ${
+              <div className={`p-2 sm:p-4 rounded-xl sm:rounded-2xl border text-center transition-all ${
                 isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-white border-slate-100 hover:shadow-md'
               }`}>
                 <div className="flex items-center justify-center mb-1">
-                  <TrendingUp className="w-4 h-4 text-indigo-500 mr-1.5" />
-                  <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Goals</span>
+                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500 mr-1 sm:mr-1.5 shrink-0" />
+                  <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-slate-400 uppercase">Goals</span>
                 </div>
-                <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-satoshi">
+                <p className="text-xs sm:text-lg md:text-2xl font-black text-slate-900 dark:text-white font-satoshi">
                   {stats.dreamsMapped.toLocaleString()}
                 </p>
               </div>
 
-              <div className={`p-4 rounded-2xl border text-center transition-all ${
+              <div className={`p-2 sm:p-4 rounded-xl sm:rounded-2xl border text-center transition-all ${
                 isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-white border-slate-100 hover:shadow-md'
               }`}>
                 <div className="flex items-center justify-center mb-1">
-                  <Award className="w-4 h-4 text-cyan-500 mr-1.5" />
-                  <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Rate</span>
+                  <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-500 mr-1 sm:mr-1.5 shrink-0" />
+                  <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-slate-400 uppercase">Rate</span>
                 </div>
-                <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-satoshi">
+                <p className="text-xs sm:text-lg md:text-2xl font-black text-slate-900 dark:text-white font-satoshi">
                   {stats.completionRate}%
                 </p>
               </div>

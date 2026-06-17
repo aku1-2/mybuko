@@ -200,7 +200,7 @@ export default function ChatsListPage() {
       <div className="absolute inset-0 noise-overlay pointer-events-none z-0" />
 
       {/* Main Split Screen container */}
-      <div className="max-w-7xl mx-auto px-4 py-6 h-[95vh] relative z-10 flex gap-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 h-[95vh] relative z-10 flex flex-col lg:flex-row gap-6">
         
         {/* LEFT PANEL: Chat List Sidebar */}
         <aside className={`w-full lg:w-[380px] shrink-0 rounded-3xl border flex flex-col overflow-hidden transition-all duration-300 shadow-lg ${
@@ -379,7 +379,7 @@ export default function ChatsListPage() {
         </aside>
 
         {/* RIGHT PANEL: Desktop Empty State Onboarding */}
-        <main className="hidden lg:flex lg:col-span-12 flex-1 rounded-3xl border overflow-hidden relative shadow-lg bg-[#0b0f19]/45 border-white/5 flex-col items-center justify-center p-8 text-center space-y-6">
+        <main className="hidden lg:flex lg:col-span-12 flex-1 min-w-0 rounded-3xl border overflow-hidden relative shadow-lg bg-[#0b0f19]/45 border-white/5 flex-col items-center justify-center p-8 text-center space-y-6">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
           
           <div className="max-w-md space-y-5 relative z-10 flex flex-col items-center">
