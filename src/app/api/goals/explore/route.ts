@@ -14,8 +14,14 @@ export async function GET(request: NextRequest) {
     const filter = searchParams.get('filter') || 'trending'
     const category = searchParams.get('category')
 
-    const where: any = { visibility: 'Public' }
+    const where: any = {
+      visibility: 'Public',
+      category: { not: 'Personal' }
+    }
     if (category && category !== 'All') {
+      if (category === 'Personal') {
+        return NextResponse.json([])
+      }
       where.category = category
     }
 
@@ -28,6 +34,10 @@ export async function GET(request: NextRequest) {
 
     if (goals.length < 12) {
       const fallbackGoals = await prisma.goal.findMany({
+        where: {
+          visibility: 'Public',
+          category: { not: 'Personal' }
+        },
         include: { user: { select: { name: true, email: true } } },
         orderBy: [
           { progress: 'desc' },

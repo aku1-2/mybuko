@@ -26,7 +26,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Get goals stats
     const goals = await prisma.goal.findMany({
-      where: { userId }
+      where: { 
+        userId,
+        category: { not: 'Personal' }
+      }
     })
     const totalGoals = goals.length
     const completedGoals = goals.filter(g => g.status === 'Completed').length

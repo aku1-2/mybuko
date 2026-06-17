@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
         name: true,
         profileImage: true,
         goals: {
+          where: {
+            category: { not: 'Personal' }
+          },
           select: {
             progress: true,
             status: true

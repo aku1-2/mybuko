@@ -366,7 +366,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
     const fetchAiChallenges = async () => {
       setLoadingChallenges(true)
       try {
-        const categories = ['Skills', 'Health', 'Adventure', 'Personal', 'Travel']
+        const categories = ['Skills', 'Health', 'Adventure', 'Travel']
         const randomCat = categories[Math.floor(Math.random() * categories.length)]
         
         const res = await fetch('/api/ai/recommend-goal', {

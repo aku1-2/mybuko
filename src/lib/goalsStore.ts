@@ -33,19 +33,22 @@ const parseGoal = (goal: any): Goal => ({
 })
 
 export async function createGoal(data: Partial<Goal>) {
+  const category = data.category || 'General'
+  const visibility = category === 'Personal' ? 'Private' : (data.visibility || 'Private')
+
   const goal = await prisma.goal.create({
     data: {
       userId: data.userId || '',
       title: data.title || 'Untitled',
       description: data.description || '',
-      category: data.category || 'General',
+      category,
       targetDate: data.targetDate ? new Date(data.targetDate) : null,
       budget: data.budget ?? null,
       priority: data.priority || 'Medium',
       difficulty: data.difficulty || 'Medium',
       location: data.location || '',
       tags: formatTags(data.tags),
-      visibility: data.visibility || 'Private',
+      visibility,
       status: data.status || 'Not Started',
       progress: data.progress ?? 0,
       estimatedCost: data.estimatedCost ?? null,
@@ -76,19 +79,22 @@ export async function updateGoal(id: string, updates: Partial<Goal>) {
   const existing = await prisma.goal.findUnique({ where: { id } })
   if (!existing) return null
 
+  const category = updates.category ?? existing.category
+  const visibility = category === 'Personal' ? 'Private' : (updates.visibility ?? existing.visibility)
+
   const goal = await prisma.goal.update({
     where: { id },
     data: {
       title: updates.title ?? existing.title,
       description: updates.description ?? existing.description,
-      category: updates.category ?? existing.category,
+      category,
       targetDate: updates.targetDate === '' ? null : updates.targetDate ? new Date(updates.targetDate) : existing.targetDate,
       budget: updates.budget ?? existing.budget,
       priority: updates.priority ?? existing.priority,
       difficulty: updates.difficulty ?? existing.difficulty,
       location: updates.location ?? existing.location,
       tags: updates.tags ? formatTags(updates.tags) : existing.tags,
-      visibility: updates.visibility ?? existing.visibility,
+      visibility,
       status: updates.status ?? existing.status,
       progress: updates.progress ?? existing.progress,
       estimatedCost: updates.estimatedCost !== undefined ? updates.estimatedCost : existing.estimatedCost,

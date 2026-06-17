@@ -473,7 +473,11 @@ export default function AddGoalPage() {
                         key={cat.name}
                         type="button"
                         onClick={() => {
-                          setFormData(prev => ({ ...prev, category: cat.name }))
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            category: cat.name,
+                            ...(cat.name === 'Personal' ? { visibility: 'Private' } : {})
+                          }))
                           setSelectedAIGoal(null)
                           setMilestones([])
                         }}
@@ -640,8 +644,16 @@ export default function AddGoalPage() {
 
                   {/* Public Card */}
                   <div 
-                    onClick={() => setFormData(prev => ({ ...prev, visibility: 'Public' }))}
+                    onClick={() => {
+                      if (formData.category === 'Personal') {
+                        alert("Personal category goals are private and cannot be made public.")
+                        return
+                      }
+                      setFormData(prev => ({ ...prev, visibility: 'Public' }))
+                    }}
                     className={`cursor-pointer rounded-2xl border p-4.5 transition-all duration-300 flex items-start gap-3.5 relative overflow-hidden ${
+                      formData.category === 'Personal' ? 'opacity-40 cursor-not-allowed' : ''
+                    } ${
                       formData.visibility === 'Public'
                         ? isDark
                           ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20'
