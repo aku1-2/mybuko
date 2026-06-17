@@ -77,6 +77,14 @@
         /* will-change: filter, backdrop-filter; -- Commented out to prevent mobile GPU paint/flicker loops */
     }
 
+    /* Disable backdrop-filter on mobile viewports to prevent GPU memory bleed and visual static line glitches */
+    @media (max-width: 767px) {
+        * {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+    }
+
     /* Particle animations */
     .particle {
         position: absolute;
