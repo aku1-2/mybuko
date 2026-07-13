@@ -176,6 +176,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
   const [images, setImages] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [goalJoined, setGoalJoined] = useState(false)
+  const [joinedGoalTitles, setJoinedGoalTitles] = useState<string[]>([])
   const [activeCommentPost, setActiveCommentPost] = useState<string | number | null>(null)
   const [following, setFollowing] = useState<Record<string, boolean>>({})
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
@@ -533,6 +534,24 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
           }
         }
         fetchDbFollowing()
+
+        const fetchJoinedGoals = async () => {
+          try {
+            const res = await fetch('/api/goals', {
+              headers: {
+                'Authorization': `Bearer ${storedToken}`
+              }
+            })
+            if (res.ok) {
+              const data = await res.json()
+              const titles = data.map((g: any) => g.title)
+              setJoinedGoalTitles(titles)
+            }
+          } catch (err) {
+            console.error('Failed to fetch user goals:', err)
+          }
+        }
+        fetchJoinedGoals()
       }
     } catch {
       // ignore user load errors
@@ -756,6 +775,7 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
           })
           if (res.ok) {
             setGoalJoined(true)
+            setJoinedGoalTitles(prev => [...prev, goal.title])
             return
           }
         } catch (err) {
@@ -981,13 +1001,22 @@ export default function ExploreFeed({ searchTerm = '' }: { searchTerm?: string }
                         <div className="h-full bg-gradient-to-r from-violet-500 to-cyan-400" style={{ width: `${goal.progress ?? 0}%` }} />
                       </div>
 
-                      <button
-                        onClick={() => joinGoal({ title: goal.title, description: goal.description, category: goal.category })}
-                        disabled={!isLoggedIn}
-                        className="w-full py-2 rounded-2xl bg-white dark:bg-white/5 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition"
-                      >
-                        Join Goal Trend
-                      </button>
+                      {(() => {
+                        const hasJoinedGoal = joinedGoalTitles.includes(goal.title)
+                        return (
+                          <button
+                            onClick={() => joinGoal({ title: goal.title, description: goal.description, category: goal.category })}
+                            disabled={hasJoinedGoal || !isLoggedIn}
+                            className={`w-full py-2 rounded-2xl border text-[10px] font-bold transition ${
+                              hasJoinedGoal
+                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-450 cursor-default'
+                                : 'bg-white dark:bg-white/5 border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10'
+                            }`}
+                          >
+                            {hasJoinedGoal ? 'Joined Trend ✓' : 'Join Goal Trend'}
+                          </button>
+                        )
+                      })()}
                     </div>
                   </motion.article>
                 ))}
