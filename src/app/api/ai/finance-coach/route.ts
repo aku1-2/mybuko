@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { messages, mode, goalContext } = body
 
-    const apiKey = process.env.GROQ_API_KEY
+    const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
 
     // Fallback: If Groq API Key is missing, use intelligent mock generation
     if (!apiKey) {
@@ -42,12 +42,12 @@ Always return a structured recommendation detailing:
 Be precise, realistic, and use the currency symbol ₹ (INR) since MyBuko targets Indian users.`
 
       userMessageContent = `Optimize this goal:
-Goal: ${goalContext.title}
-Current Budget: ₹${goalContext.budget || 'Not specified'}
-Estimated Cost: ₹${goalContext.estimatedCost || 'Not specified'}
-Current Savings: ₹${goalContext.amountSaved || '0'}
-Target Timeline: ${goalContext.targetDate ? new Date(goalContext.targetDate).toLocaleDateString() : 'Not specified'}
-Category: ${goalContext.category}
+Goal: ${goalContext?.title || 'Bucket List Goal'}
+Current Budget: ₹${goalContext?.budget || 'Not specified'}
+Estimated Cost: ₹${goalContext?.estimatedCost || 'Not specified'}
+Current Savings: ₹${goalContext?.amountSaved || '0'}
+Target Timeline: ${goalContext?.targetDate ? new Date(goalContext.targetDate).toLocaleDateString() : 'Not specified'}
+Category: ${goalContext?.category || 'General'}
 
 Suggest:
 1. Three alternative, cheaper options (name, cost in ₹, and brief reason why it saves money).
@@ -57,7 +57,7 @@ Suggest:
       systemPrompt = `You are MyBuko's AI Cost Estimator. You estimate the realistic cost of bucket list dreams for Indian users in Indian Rupees (₹).
 Given a dream title, reply with ONLY a single raw number representing the estimated cost in Indian Rupees (no currency symbol, no commas, no text). For example, if the estimated cost is ₹1,50,000, reply: 150000. If the cost is ₹5,000, reply: 5000.`
       
-      userMessageContent = `Estimate the cost of this dream: "${goalContext.title}"`
+      userMessageContent = `Estimate the cost of this dream: "${goalContext?.title || 'My Dream'}"`
     } else {
       // Default: Conversational Coach
       systemPrompt = `You are MyBuko's Premium AI Financial Coach. You help users plan, save for, and budget their bucket list dreams.
@@ -97,21 +97,22 @@ Instructions:
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`AI API error ${response.status}: ${errorText}`)
+      console.warn(`Groq API error ${response.status}. Falling back to mock response.`)
+      const reply = generateMockCoachResponse(mode, messages, goalContext)
+      return NextResponse.json({ success: true, reply })
     }
 
     const data = await response.json()
-    const reply = data.choices[0].message.content
+    const reply = data.choices?.[0]?.message?.content || generateMockCoachResponse(mode, messages, goalContext)
 
     return NextResponse.json({ success: true, reply })
   } catch (error: any) {
     console.error('AI Finance Coach Error:', error)
+    const reply = generateMockCoachResponse(mode, messages, goalContext)
     return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to generate financial advice. Falling back to local calculator.',
-      reply: 'I encountered a brief issue connecting to my brain. However, here is a general tip: To achieve your dreams faster, try automating ₹1,500 monthly transfers to a separate account right after payday!' 
-    }, { status: 500 })
+      success: true, 
+      reply: reply || 'I encountered a brief issue connecting to my brain. Try saving ₹1,500 monthly towards your top goal!' 
+    })
   }
 }
 

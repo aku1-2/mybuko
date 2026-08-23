@@ -4,31 +4,25 @@ import { verifyToken } from '@/lib/auth'
 
 async function getUserFromRequest(req: NextRequest) {
   let token = req.cookies.get('token')?.value
-  console.log('Cookie token:', token)
   
   if (!token) {
     const authHeader = req.headers.get('authorization')
-    console.log('Auth header:', authHeader)
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.substring(7)
     }
   }
   
   if (!token) {
-    console.log('No token found')
     return null
   }
   
   const payload = verifyToken(token)
-  console.log('Payload:', payload)
-  
   if (!payload) return null
 
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     select: { id: true }
   })
-  console.log('User found:', user)
   
   if (!user) return null
   return payload

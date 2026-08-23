@@ -161,6 +161,10 @@ export default function AddGoalPage() {
     try {
       const token = localStorage.getItem('token')
       
+      const cleanBudget = formData.budget 
+        ? parseFloat(String(formData.budget).replace(/[^0-9.]/g, '')) 
+        : null
+
       const res = await fetch('/api/goals', {
         method: 'POST',
         headers: {
@@ -170,7 +174,7 @@ export default function AddGoalPage() {
         body: JSON.stringify({
           ...formData,
           tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-          budget: formData.budget ? parseFloat(formData.budget) : null
+          budget: isNaN(cleanBudget as number) ? null : cleanBudget
         })
       })
 
@@ -221,6 +225,7 @@ export default function AddGoalPage() {
     setAiLoading(true)
     setAiError('')
     setAiRecommendations([])
+    setShowAIModal(true)
 
     try {
       const res = await fetch('/api/ai/recommend-goal', {
@@ -239,27 +244,34 @@ export default function AddGoalPage() {
 
       const data = await res.json()
       if (!res.ok || !data.success || !Array.isArray(data.recommendations) || data.recommendations.length === 0) {
-        setAiError(data.error || 'Failed to generate AI recommendations. Make sure GROQ API key is set in .env.local')
+        setAiError(data.error || 'Failed to generate AI recommendations. Please check GROQ_API_KEY in .env.local')
         return
       }
 
       setAiRecommendations(data.recommendations)
-      setShowAIModal(true)
     } catch (error) {
       console.error('AI Error:', error)
-      setAiError('Error connecting to AI. Check your GROQ_API_KEY in .env.local')
+      setAiError('Error connecting to AI. Please check your GROQ_API_KEY in .env.local')
     } finally {
       setAiLoading(false)
     }
   }
 
   const applyAIRecommendation = (rec: AIRecommendation) => {
+    let cleanBudget = ''
+    if (rec.estimatedBudget) {
+      const digits = String(rec.estimatedBudget).replace(/,/g, '').match(/\d+/)
+      if (digits) {
+        cleanBudget = digits[0]
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
-      title: rec.title,
-      description: rec.why,
-      tags: rec.timeframe ? `${rec.timeframe}, ${prev.tags}` : prev.tags,
-      budget: rec.estimatedBudget || prev.budget
+      title: rec.title || prev.title,
+      description: rec.why || prev.description,
+      tags: rec.timeframe ? (prev.tags ? `${prev.tags}, ${rec.timeframe}` : rec.timeframe) : prev.tags,
+      budget: cleanBudget || prev.budget
     }))
     setMilestones(rec.milestones || [])
     setShowAIModal(false)

@@ -1,17 +1,29 @@
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
+  let title = ''
+  let description = ''
+  let category = 'Travel'
+  let budget = ''
+  let targetDate = ''
+  let location = ''
+  let userGoals: any[] = []
+
   try {
-    const {
-  title,
-  description,
-  category,
-  budget,
-  targetDate,
-  location,
-  userGoals
-} = await req.json()
-    const apiKey = process.env.GROQ_API_KEY 
+    const body = await req.json()
+    title = body.title || ''
+    description = body.description || ''
+    category = body.category || 'Travel'
+    budget = body.budget || ''
+    targetDate = body.targetDate || ''
+    location = body.location || ''
+    userGoals = Array.isArray(body.userGoals) ? body.userGoals : []
+  } catch (parseErr) {
+    console.warn('Error parsing request body:', parseErr)
+  }
+
+  try {
+    const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
 
     if (!apiKey) {
       console.warn('GROQ API key is not configured. Falling back to mock recommendations.')
@@ -22,6 +34,11 @@ export async function POST(req: Request) {
         raw: JSON.stringify(recommendations)
       })
     }
+
+    const existingGoalsText = userGoals
+      .map((g: any) => (typeof g === 'string' ? g : g?.title))
+      .filter(Boolean)
+      .join(', ') || 'None'
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -34,7 +51,7 @@ export async function POST(req: Request) {
         messages: [
           {
             role: 'user',
-           content: `
+            content: `
 You are MyBuko's AI Aspiration Coach.
 
 MyBuko helps people transform aspirations into reality.
@@ -60,104 +77,80 @@ Location:
 ${location || 'Not specified'}
 
 Existing Goals:
-${userGoals.map((g: any) => g.title).join(', ') || 'None'}
+${existingGoalsText}
 
 Instructions:
 
 1. If the title is provided:
-   - Build recommendations around that aspiration.
-   - Make them realistic and actionable.
-   - Expand the user's idea.
+   - Build 3 distinct, actionable recommendations/blueprints around that specific aspiration.
+   - Refine and expand the user's idea into structured, practical milestones.
+   - Option 1: Comprehensive roadmap.
+   - Option 2: Accelerated / High-focus path.
+   - Option 3: Mindful / Habit-integrated path.
 
 2. If title is empty:
-   - Generate 3 inspiring goals in the selected category.
+   - Generate 3 inspiring goals in the selected category (${category}).
 
-3. Include:
-   - title
-   - why
-   - milestones (3-5)
-   - timeframe
-   - estimatedBudget
+3. Include for each recommendation:
+   - title: string (Clear, inspiring goal title)
+   - why: string (2-3 sentences explaining why this blueprint works and how it helps)
+   - milestones: array of 3 to 5 actionable milestone step strings
+   - timeframe: string (e.g., "3 to 6 months", "8 weeks", etc.)
+   - estimatedBudget: string (e.g., "₹15,000 - ₹25,000", "Minimal budget", etc.)
 
 IMPORTANT:
-If a title is provided, do NOT generate unrelated goals.
-You must build recommendations around the user's title and description.
+If a title is provided, do NOT generate unrelated goals. Build directly on the user's title and description.
 
-For example:
-Title: Visit Tokyo
-
-Good:
-- Visit Tokyo in Spring 2027
-- 10-Day Tokyo Cultural Trip
-- Tokyo + Kyoto Travel Experience
-
-Bad:
-- Explore Beaches
-- Learn Guitar
-- Start a Business
-
-Return ONLY valid JSON array containing EXACTLY 3 recommendations.
-
-Example:
-[
-  {
-    "title": "Goal 1",
-    "why": "...",
-    "milestones": ["..."],
-    "timeframe": "...",
-    "estimatedBudget": "..."
-  },
-  {
-    "title": "Goal 2",
-    "why": "...",
-    "milestones": ["..."],
-    "timeframe": "...",
-    "estimatedBudget": "..."
-  },
-  {
-    "title": "Goal 3",
-    "why": "...",
-    "milestones": ["..."],
-    "timeframe": "...",
-    "estimatedBudget": "..."
-  }
-]
+Return ONLY a valid JSON array containing EXACTLY 3 recommendation objects. Do not include extra conversational text or markdown explanation outside the JSON array.
 `
           }
         ],
-        temperature: 0.8,
-        max_tokens: 1000,
+        temperature: 0.7,
+        max_tokens: 1200,
       })
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`AI API error ${response.status}: ${errorText}`)
+      console.warn(`Groq API returned ${response.status}: ${errorText}. Falling back to mock recommendations.`)
+      const recommendations = generateMockRecommendations(title, description, category, budget, location)
+      return Response.json({ 
+        success: true, 
+        recommendations,
+        raw: JSON.stringify(recommendations)
+      })
     }
-console.log('Groq response status:', response.status)
 
     const data = await response.json()
-    const content = data.choices[0].message.content
-console.log('AI content:', content)
-    // Parse JSON from response
-    const jsonMatch = content.match(/\[[\s\S]*\]/)
+    const content = data.choices?.[0]?.message?.content || ''
+
+    // Clean markdown code fences if present
+    const cleanedContent = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+
+    // Match JSON array
+    const jsonMatch = cleanedContent.match(/\[[\s\S]*\]/)
     if (!jsonMatch) {
-      throw new Error('AI response did not include valid recommendations')
+      console.warn('AI response did not include a valid JSON array. Falling back to mock recommendations.')
+      const recommendations = generateMockRecommendations(title, description, category, budget, location)
+      return Response.json({ 
+        success: true, 
+        recommendations,
+        raw: content 
+      })
     }
 
-    let recommendations
-
+    let recommendations: any[] = []
     try {
       const parsed = JSON.parse(jsonMatch[0])
-
-      if (Array.isArray(parsed)) {
-        recommendations = parsed
-      } else {
-        recommendations = [parsed]
-      }
+      recommendations = Array.isArray(parsed) ? parsed : [parsed]
     } catch (err) {
-      console.error('JSON Parse Error:', err)
-      throw new Error('Invalid JSON returned by AI')
+      console.warn('JSON Parse Error from AI response. Falling back to mock recommendations.', err)
+      recommendations = generateMockRecommendations(title, description, category, budget, location)
+    }
+
+    // Validate that we have valid recommendations
+    if (!recommendations || recommendations.length === 0) {
+      recommendations = generateMockRecommendations(title, description, category, budget, location)
     }
 
     return Response.json({ 
@@ -166,11 +159,14 @@ console.log('AI content:', content)
       raw: content 
     })
   } catch (error) {
-    console.error('AI Error:', error)
+    console.error('AI Recommend Goal Error:', error)
+    // Always provide a graceful fallback rather than failing the user experience
+    const fallback = generateMockRecommendations(title, description, category, budget, location)
     return Response.json({ 
-      success: false, 
-      error: 'Failed to generate recommendations' 
-    }, { status: 500 })
+      success: true, 
+      recommendations: fallback,
+      raw: JSON.stringify(fallback)
+    })
   }
 }
 

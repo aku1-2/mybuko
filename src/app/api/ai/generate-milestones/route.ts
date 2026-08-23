@@ -1,21 +1,35 @@
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
+  let goalTitle = ''
+  let goalDescription = ''
+  let targetDate = ''
+
   try {
-    const { goalTitle, goalDescription, targetDate } = await req.json()
+    const body = await req.json()
+    goalTitle = body.goalTitle || ''
+    goalDescription = body.goalDescription || ''
+    targetDate = body.targetDate || ''
+  } catch (parseErr) {
+    console.warn('Error parsing request body:', parseErr)
+  }
+
+  const getMockMilestones = () => [
+    { title: `Define requirements and roadmap for "${goalTitle || 'Goal'}"`, description: "Research the tools, resources, and steps needed.", percentage: 20, actions: ["Search online for guides", "Make a checklist of resources"] },
+    { title: "Initiate daily consistency habit", description: "Establish a fixed time slot daily to work on it.", percentage: 40, actions: ["Block calendar", "Set daily reminder"] },
+    { title: "Mid-way progress checkpoint", description: "Assess initial output and refine techniques.", percentage: 60, actions: ["Write self-reflection notes", "Fix bottleneck areas"] },
+    { title: "Advanced implementation phase", description: "Scale up speed and quality.", percentage: 80, actions: ["Complete the complex parts", "Get peer feedback"] },
+    { title: "Final achievement & celebration", description: "Complete all final items and log in MyBuko.", percentage: 100, actions: ["Verify completion", "Share story with the preview community"] }
+  ]
+
+  try {
     const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
 
     if (!apiKey) {
       console.warn('GROQ API key is not configured. Falling back to mock milestones.')
       return Response.json({ 
         success: true, 
-        milestones: [
-          { title: `Define requirements and roadmap for "${goalTitle || 'Goal'}"`, description: "Research the tools, resources, and steps needed.", percentage: 20, actions: ["Search online for guides", "Make a checklist of resources"] },
-          { title: "Initiate daily consistency habit", description: "Establish a fixed time slot daily to work on it.", percentage: 40, actions: ["Block calendar", "Set daily reminder"] },
-          { title: "Mid-way progress checkpoint", description: "Assess initial output and refine techniques.", percentage: 60, actions: ["Write self-reflection notes", "Fix bottleneck areas"] },
-          { title: "Advanced implementation phase", description: "Scale up speed and quality.", percentage: 80, actions: ["Complete the complex parts", "Get peer feedback"] },
-          { title: "Final achievement & celebration", description: "Complete all final items and log in MyBuko.", percentage: 100, actions: ["Verify completion", "Share story with the preview community"] }
-        ]
+        milestones: getMockMilestones()
       })
     }
 
@@ -26,25 +40,23 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mixtral-8x7b-32768',
+        model: 'llama-3.1-8b-instant',
         messages: [
           {
             role: 'user',
             content: `Create a detailed milestone roadmap for this goal:
 
-Goal: ${goalTitle}
-Description: ${goalDescription}
-Target Date: ${targetDate}
+Goal: ${goalTitle || 'Untitled Goal'}
+Description: ${goalDescription || 'None'}
+Target Date: ${targetDate || 'Flexible'}
 
-Generate 5-7 specific, measurable milestones with:
-- Title
-- Description
-- Suggested completion date (as percentage: 20%, 40%, 60%, 80%, 100%)
-- Key actions to complete it
+Generate 5 specific, measurable milestones with:
+- title: string
+- description: string
+- percentage: number (20, 40, 60, 80, 100)
+- actions: array of strings
 
-Make them SMART (Specific, Measurable, Achievable, Relevant, Time-bound).
-
-Format as JSON array: [{title, description, percentage, actions[]}]`
+Format as a valid JSON array: [{"title": "...", "description": "...", "percentage": 20, "actions": ["..."]}]`
           }
         ],
         temperature: 0.7,
@@ -52,21 +64,27 @@ Format as JSON array: [{title, description, percentage, actions[]}]`
       })
     })
 
-    const data = await response.json()
-    const content = data.choices[0].message.content
+    if (!response.ok) {
+      console.warn(`Groq API returned ${response.status}. Falling back to mock milestones.`)
+      return Response.json({ success: true, milestones: getMockMilestones() })
+    }
 
-    const jsonMatch = content.match(/\[[\s\S]*\]/)
-    const milestones = jsonMatch ? JSON.parse(jsonMatch[0]) : []
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content || ''
+
+    const cleanedContent = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+    const jsonMatch = cleanedContent.match(/\[[\s\S]*\]/)
+    const milestones = jsonMatch ? JSON.parse(jsonMatch[0]) : getMockMilestones()
 
     return Response.json({ 
       success: true, 
-      milestones 
+      milestones: Array.isArray(milestones) && milestones.length > 0 ? milestones : getMockMilestones()
     })
   } catch (error) {
-    console.error('AI Error:', error)
+    console.error('AI Generate Milestones Error:', error)
     return Response.json({ 
-      success: false, 
-      error: 'Failed to generate milestones' 
-    }, { status: 500 })
+      success: true, 
+      milestones: getMockMilestones()
+    })
   }
 }

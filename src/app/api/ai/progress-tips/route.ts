@@ -1,28 +1,44 @@
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
+  let goalTitle = ''
+  let currentProgress = 0
+  let lastUpdate = ''
+  let daysActive = 1
+
   try {
-    const { goalTitle, currentProgress, lastUpdate, daysActive } = await req.json()
+    const body = await req.json()
+    goalTitle = body.goalTitle || 'My Goal'
+    currentProgress = body.currentProgress || 0
+    lastUpdate = body.lastUpdate || 'Today'
+    daysActive = body.daysActive || 1
+  } catch (parseErr) {
+    console.warn('Error parsing request body:', parseErr)
+  }
+
+  const getMockTips = () => `### Progress Analysis
+You are doing great! With **${currentProgress}%** progress over **${daysActive}** active days on **"${goalTitle}"**, you are building real momentum. The key is consistent execution.
+
+### Recommended Next Steps
+1. **Focus on the next milestone**: Pick your closest unchecked milestone and dedicate 30 focused minutes today.
+2. **Review your timeline**: Keep your target date realistic and break larger tasks into sub-steps.
+3. **Share your progress**: Log a quick milestone update to keep accountability strong.
+
+### Motivational Quote
+> "Success is the sum of small efforts, repeated day in and day out." — Robert Collier
+
+### Potential Obstacles
+* **Loss of Motivation**: Prevent this by celebrating small wins along the way.
+* **Time Crunch**: Allocate a non-negotiable 15-minute daily focus window.`
+
+  try {
     const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
 
     if (!apiKey) {
       console.warn('GROQ API key is not configured. Falling back to mock tips.')
       return Response.json({ 
         success: true, 
-        tips: `### Progress Analysis
-You are doing great! With **${currentProgress || 0}%** progress over **${daysActive || 1}** active days, you are building momentum. The key is to keep taking small actions.
-
-### Recommended Next Steps
-1. **Focus on the next milestone**: Pick the closest unchecked milestone and dedicate 30 minutes to it.
-2. **Review your timeline**: Ensure your target date is realistic and adjust if necessary.
-3. **Share your progress**: Log a quick note or share an update with peers to keep accountability.
-
-### Motivational Quote
-> "Success is the sum of small efforts, repeated day in and day out." — Robert Collier
-
-### Potential Obstacles
-* **Loss of Motivation**: Prevent this by tracking your small wins and visual progress bar.
-* **Lack of Time**: Allocate just 15 minutes of uninterrupted focus in the morning.`
+        tips: getMockTips()
       })
     }
 
@@ -33,7 +49,7 @@ You are doing great! With **${currentProgress || 0}%** progress over **${daysAct
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mixtral-8x7b-32768',
+        model: 'llama-3.1-8b-instant',
         messages: [
           {
             role: 'user',
@@ -44,29 +60,41 @@ Progress: ${currentProgress}%
 Days Active: ${daysActive}
 Last Updated: ${lastUpdate}
 
-Provide:
-1. Encouraging analysis of current progress
-2. 3 specific next steps to move forward
-3. 1 motivational quote
-4. Potential obstacles and how to overcome them
+Provide markdown with:
+### Progress Analysis
+(encouraging analysis)
+
+### Recommended Next Steps
+(3 specific next steps)
+
+### Motivational Quote
+(1 quote)
+
+### Potential Obstacles
+(2 obstacles and how to overcome them)
 
 Keep it concise and action-oriented!`
           }
         ],
-        temperature: 0.8,
+        temperature: 0.7,
         max_tokens: 800,
       })
     })
 
+    if (!response.ok) {
+      console.warn(`Groq API returned ${response.status}. Falling back to mock tips.`)
+      return Response.json({ success: true, tips: getMockTips() })
+    }
+
     const data = await response.json()
-    const tips = data.choices[0].message.content
+    const tips = data.choices?.[0]?.message?.content || getMockTips()
 
     return Response.json({ success: true, tips })
   } catch (error) {
-    console.error('AI Error:', error)
+    console.error('AI Progress Tips Error:', error)
     return Response.json({ 
-      success: false, 
-      error: 'Failed to generate tips' 
-    }, { status: 500 })
+      success: true, 
+      tips: getMockTips()
+    })
   }
 }
